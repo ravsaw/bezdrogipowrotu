@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cl6nldw3x4n2g"]
+
+[ext_resource type="Script" uid="uid://btjwg05av0sjf" path="res://scenes/npc/group/front_npc_group.gd" id="1_4fmj7"]
+
+[node name="FrontNpcGroup" type="Node3D"]
+script = ExtResource("1_4fmj7")

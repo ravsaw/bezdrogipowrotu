@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://c7nufxu8lkgyh"]
+
+[ext_resource type="Script" uid="uid://ctrs6asjj47b0" path="res://scenes/locations/back_mode/strategic_map.gd" id="1_136s7"]
+
+[node name="StrategicMap" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_136s7")

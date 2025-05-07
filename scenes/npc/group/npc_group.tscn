@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bexa1e8x3r6mt"]
+
+[ext_resource type="Script" uid="uid://c43msfalo6o11" path="res://scenes/npc/group/npc_group.gd" id="1_m2nts"]
+
+[node name="NpcGroup" type="Node"]
+script = ExtResource("1_m2nts")
+metadata/_custom_type_script = "uid://c43msfalo6o11"
