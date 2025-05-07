@@ -4,7 +4,7 @@ class_name WorldManager
 # Location scenes
 var location_scenes = {
 	"location1": preload("res://scenes/locations/front_mode/location1.tscn"),
-	"location2": preload("res://scenes/locations/front_mode/location2.tscn")
+	#"location2": preload("res://scenes/locations/front_mode/location2.tscn")
 }
 
 # References
@@ -38,6 +38,8 @@ func _ready():
 	
 	# Initialize systems
 	initialize_systems()
+	
+	await get_tree().process_frame
 	
 	# Setup player first
 	setup_player()
@@ -78,20 +80,20 @@ func setup_player():
 
 # Load a location
 func load_location(location_id: String):
-	# Remove current location if exists
+	# Usuń aktualną lokację, jeśli istnieje
 	if current_location:
 		current_location.queue_free()
 	
-	# Instantiate new location
+	# Utwórz nową lokację
 	var location_scene = location_scenes[location_id]
 	current_location = location_scene.instantiate()
 	current_location.name = location_id
 	locations_container.add_child(current_location)
 	
-	# Update current location tracking
+	# Zaktualizuj śledzenie aktualnej lokacji
 	current_location_id = location_id
 	
-	# Tell A-Life system about location change if it's initialized
+	# Powiedz systemowi A-Life o zmianie lokacji, jeśli jest zainicjalizowany
 	if alife_system and alife_system.initialized:
 		alife_system.set_player_location(location_id)
 

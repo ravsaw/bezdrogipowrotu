@@ -46,9 +46,72 @@ func _process(delta):
 
 # Update logic in back mode
 func _process_back_mode(delta):
-	if not target_poi.is_empty():
+	if moving_between_locations:
+		_move_between_locations(delta)
+	elif not target_poi.is_empty():
 		_move_to_target(delta)
+	else:
+		# Wybierz nowy cel, może to być POI lub inna lokacja
+		_choose_new_destination()
+		
+# Nowa metoda do poruszania się między lokacjami
+func _move_between_locations(delta):
+	if path_to_target.is_empty():
+		# Dotarliśmy do celu, zmieniamy lokację
+		alife_system.change_group_location(group_id, target_location)
+		moving_between_locations = false
+		target_location = ""
+		return
+		
+	# Poruszaj się w kierunku następnego punktu ścieżki
+	var target = path_to_target[0]
+	var direction = (target - back_position).normalized()
+	var move_speed = 5.0  # Jednostki na sekundę w trybie back
+	
+	# Przesuń lidera
+	back_position += direction * move_speed * delta
+	
+	# Sprawdź czy dotarliśmy do punktu docelowego
+	if back_position.distance_to(target) < 1.0:
+		path_to_target.pop_front()
+	
+	# Zaktualizuj pozycję 3D
+	if coord_translator:
+		leader_position = coord_translator.back_to_front(current_location, back_position)
 
+# Nowa metoda do wybierania nowego celu
+func _choose_new_destination():
+	# Losowo zdecyduj czy zmienić lokację
+	if randf() < 0.0:  # 30% szans na zmianę lokacji
+		_choose_new_location()
+	else:
+		choose_new_target()  # Wybierz POI w aktualnej lokacji
+
+# Nowa metoda do wybierania nowej lokacji
+func _choose_new_location():
+	if not coord_translator:
+		push_error("Cannot choose new location: CoordTranslator not found")
+		return
+		
+	# Pobierz markery zmiany lokacji w aktualnej lokacji
+	var markers = coord_translator.location_data[current_location].get("location_change_markers", {})
+	if markers.is_empty():
+		# Brak markerów, wybierz POI
+		choose_new_target()
+		return
+		
+	# Wybierz losowy marker
+	var marker_ids = markers.keys()
+	var marker_id = marker_ids[randi() % marker_ids.size()]
+	var marker = markers[marker_id]
+	
+	# Ustaw cel na marker
+	target_location = marker["target_location"]
+	moving_between_locations = true
+	
+	# Oblicz ścieżkę do markera
+	path_to_target = _calculate_path_to(marker["position"])
+	
 # Choose a new POI target
 func choose_new_target():
 	if not coord_translator:

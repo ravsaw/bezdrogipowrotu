@@ -1,112 +1,122 @@
+# scenes/locations/front_mode/location.gd
 extends Node3D
 class_name Location
 
 @export var location_id: String = "location1"
+@export var strategic_map_position: Vector2 = Vector2(0, 0) # Pozycja na mapie strategicznej
+@export var strategic_map_size: Vector2 = Vector2(100, 100) # Rozmiar na mapie strategicznej
+@export var scale_factor: Vector2 = Vector2(10, 10) # Współczynnik skalowania front->back
 
-# References
-var coord_translator
-var world_manager
+# Kolekcje obiektów w lokacji
+var pois = {}
+var portals = {}
+var location_change_markers = {}
+var spawn_points = {}
+
+# Referencje do systemu
+var coord_translator: CoordTranslator
+var world_manager: WorldManager
 
 func _ready():
-	# Get system references
+	# Pobierz referencje do systemów
 	coord_translator = get_node("/root/World/Systems/CoordTranslator")
 	world_manager = get_node("/root/World")
 	
-	# Setup environment
-	create_environment()
+	# Zarejestruj tę lokację w systemie koordynatów
+	register_with_coord_translator()
 	
-	# Setup POIs
-	setup_pois()
-	
-	# Setup portals
-	setup_portals()
+	find_and_register_objects()
 
-# Create basic environment
-func create_environment():
-	# Create floor
-	var floor_mesh = PlaneMesh.new()
-	floor_mesh.size = Vector2(1000, 1000)  # Match our location size
-	
-	var floor_t = MeshInstance3D.new()
-	floor_t.mesh = floor_mesh
-	floor_t.name = "Floor"
-	
-	# Add material
-	var material = StandardMaterial3D.new()
-	material.albedo_color = Color(0.3, 0.5, 0.3)  # Grass-like color
-	floor_t.material_override = material
-	
-	add_child(floor_t)
-	
-	# Add collision
-	var static_body = StaticBody3D.new()
-	floor_t.add_child(static_body)
-	
-	var collision = CollisionShape3D.new()
-	var shape = BoxShape3D.new()
-	shape.size = Vector3(10000, 1, 10000)
-	collision.shape = shape
-	collision.transform.origin.y = -0.5  # Center the collision shape
-	static_body.add_child(collision)
-	
-	# Add some basic lighting
-	var dir_light = DirectionalLight3D.new()
-	dir_light.transform.basis = Basis(Vector3(0.5, -1, 0.3).normalized(), Vector3.UP, Vector3.ZERO)
-	add_child(dir_light)
+# Rejestruje lokację w systemie tłumaczenia koordynatów
+func register_with_coord_translator():
+	if coord_translator:
+		var location_data = {
+			"world_pos": strategic_map_position,
+			"size": strategic_map_size,
+			"scale_factor": scale_factor,
+			"portals": {},
+			"pois": {},
+			"location_change_markers": {},
+			"spawn_points": {}
+		}
+		coord_translator.register_location(location_id, location_data)
 
-# Setup Points of Interest
-func setup_pois():
-	# Get POI data from the coordinate translator
-	var pois = coord_translator.get_poi_positions(location_id)
+# Znajduje i rejestruje wszystkie obiekty w scenie lokacji
+func find_and_register_objects():
+	# Znajdź wszystkie POI
+	for node in get_tree().get_nodes_in_group("poi"):
+		if node is POI and is_ancestor_of(node):
+			register_poi(node)
 	
-	# Create a visual marker for each POI
-	for poi_id in pois:
-		var poi_pos = coord_translator.get_front_poi_position(location_id, poi_id)
-		
-		# Create marker
-		var marker = Node3D.new()
-		marker.name = "POI_" + poi_id
-		marker.transform.origin = poi_pos
-		add_child(marker)
-		
-		# Add visual representation
-		var mesh = MeshInstance3D.new()
-		var cylinder = CylinderMesh.new()
-		cylinder.top_radius = 1.0
-		cylinder.bottom_radius = 1.0
-		cylinder.height = 0.2
-		mesh.mesh = cylinder
-		marker.add_child(mesh)
-		
-		# Add material
-		var material = StandardMaterial3D.new()
-		material.albedo_color = Color(1, 0.8, 0)  # Yellow for POIs
-		material.emission_enabled = true
-		material.emission = material.albedo_color
-		material.emission_energy = 0.5
-		mesh.material_override = material
-		
-		# Add label
-		var label_3d = Label3D.new()
-		label_3d.text = poi_id
-		label_3d.transform.origin.y = 2.0
-		label_3d.font_size = 64
-		marker.add_child(label_3d)
+	# Znajdź wszystkie portale
+	for node in get_tree().get_nodes_in_group("portal"):
+		if node is LocationPortal and is_ancestor_of(node):
+			register_portal(node)
+	
+	# Znajdź wszystkie markery zmiany lokacji
+	for node in get_tree().get_nodes_in_group("location_change_marker"):
+		if node is LocationChangeMarker and is_ancestor_of(node):
+			register_location_change_marker(node)
+			
+	# Znajdź wszystkie punkty spawnu
+	for node in get_tree().get_nodes_in_group("spawn_point"):
+		if node is SpawnPoint and is_ancestor_of(node):
+			register_spawn_point(node)
 
-# Setup location portals
-func setup_portals():
-	# Get portal data from the coordinate translator
-	var portals = coord_translator.location_data[location_id].get("portals", {})
+# Rejestruje POI
+func register_poi(poi_node: POI):
+	var poi_id = poi_node.poi_id
+	var poi_position = poi_node.global_position
 	
-	# Create a portal for each defined connection
-	for portal_id in portals:
-		var portal_data = portals[portal_id]
-		var portal_pos = portal_data["front_pos"]
-		
-		# Instantiate portal scene
-		var portal_scene = preload("res://scenes/portals/location_portal.tscn")
-		var portal = portal_scene.instantiate()
-		portal.name = "Portal_" + portal_id
-		portal.portal_id = portal_id
-		portal.transform.origin = portal_pos
-		add_child(portal)
+	pois[poi_id] = poi_node
+	
+	# Przelicz pozycję do trybu back
+	var back_pos = coord_translator.front_to_back(location_id, poi_position)
+	
+	# Zaktualizuj dane w systemie tłumaczenia koordynatów
+	coord_translator.register_poi(location_id, poi_id, back_pos, poi_node.poi_type)
+
+# Rejestruje portal
+func register_portal(portal_node: LocationPortal):
+	var portal_id = portal_node.portal_id
+	var portal_position = portal_node.global_position
+	
+	portals[portal_id] = portal_node
+	
+	# Zaktualizuj dane w systemie tłumaczenia koordynatów
+	coord_translator.register_portal(
+		location_id, 
+		portal_id, 
+		portal_position, 
+		portal_node.target_location, 
+		portal_node.target_portal
+	)
+
+# Rejestruje marker zmiany lokacji dla NPC
+func register_location_change_marker(marker: LocationChangeMarker):
+	var marker_id = marker.name
+	var marker_position = marker.global_position
+	
+	location_change_markers[marker_id] = marker
+	
+	# Przelicz pozycję do trybu back
+	var back_pos = coord_translator.front_to_back(location_id, marker_position)
+	
+	# Zaktualizuj dane w systemie tłumaczenia koordynatów
+	coord_translator.register_location_change_marker(
+		location_id,
+		marker_id,
+		back_pos,
+		marker.target_location,
+		marker.spawn_point_id
+	)
+
+# Rejestruje punkt spawnu
+func register_spawn_point(spawn_point: SpawnPoint):
+	var spawn_id = spawn_point.spawn_id
+	var spawn_position = spawn_point.global_position
+	
+	spawn_points[spawn_id] = spawn_point
+	
+	# Zaktualizuj dane w systemie tłumaczenia koordynatów
+	coord_translator.register_spawn_point(location_id, spawn_id, spawn_position)

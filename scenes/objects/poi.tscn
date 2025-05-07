@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3 uid="uid://cm0pjcmnecdms"]
+
+[ext_resource type="Script" uid="uid://vgpfdds1can0" path="res://scenes/objects/poi.gd" id="1_6cvqu"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_6cvqu"]
+top_radius = 1.0
+bottom_radius = 1.0
+
+[node name="POI" type="Node3D"]
+script = ExtResource("1_6cvqu")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("CylinderMesh_6cvqu")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2066, 0)
+text = "POI
+"
+font_size = 125
+outline_size = 25

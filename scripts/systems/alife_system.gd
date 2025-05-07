@@ -159,20 +159,35 @@ func _process_mode_switches():
 
 # Spawn a 3D representation of the group
 func _spawn_front_group(group):
-	# Skip if already spawned
+	# Pomiń jeśli już zaspawnowano
 	if group.group_id in active_front_groups:
 		return
+	
+	# Sprawdź czy pozycja jest w granicach lokacji
+	var location = coord_translator.location_data[group.current_location]
+	var back_pos = group.back_position
+	var local_back_pos = back_pos - location["world_pos"]
+	
+	# Sprawdź czy pozycja jest w granicach lokacji w trybie back
+	if local_back_pos.x < 0 or local_back_pos.x >= location["size"].x or local_back_pos.y < 0 or local_back_pos.y >= location["size"].y:
+		# Poza granicami, przesuń do dozwolonego obszaru
+		local_back_pos.x = clamp(local_back_pos.x, 0, location["size"].x - 1)
+		local_back_pos.y = clamp(local_back_pos.y, 0, location["size"].y - 1)
 		
-	# Create front mode group
+		# Zaktualizuj pozycję grupy
+		group.back_position = location["world_pos"] + local_back_pos
+		group.leader_position = coord_translator.back_to_front(group.current_location, group.back_position)
+	
+	# Utwórz grupę w trybie frontowym
 	var front_group = front_npc_group_scene.instantiate()
 	front_groups_container.add_child(front_group)
 	
-	# Initialize with data
+	# Zainicjalizuj danymi
 	front_group.initialize(group, group.leader_position)
 	
-	# Add to active groups
+	# Dodaj do aktywnych grup
 	active_front_groups[group.group_id] = front_group
-
+	
 # Despawn a 3D representation
 func _despawn_front_group(group_id):
 	if group_id in active_front_groups:
@@ -268,3 +283,55 @@ func remove_npc_group(group_id: String):
 		# Remove base group
 		npc_groups[group_id].queue_free()
 		npc_groups.erase(group_id)
+
+# Próbuje zmienić lokację grupy NPC
+func change_group_location(group_id: String, target_location: String, spawn_point_id: String = ""):
+	if not group_id in npc_groups:
+		push_error("Group ID '" + group_id + "' not found")
+		return false
+		
+	var group = npc_groups[group_id]
+	
+	# Sprawdź czy lokacja docelowa istnieje
+	if not coord_translator.location_data.has(target_location):
+		push_error("Target location '" + target_location + "' not found")
+		return false
+	
+	# Znajdź punkt spawnu w lokacji docelowej
+	var spawn_pos = Vector3.ZERO
+	
+	if spawn_point_id.is_empty():
+		# Wybierz losowy punkt spawnu
+		var spawn_points = coord_translator.location_data[target_location].get("spawn_points", {})
+		if not spawn_points.is_empty():
+			var spawn_ids = spawn_points.keys()
+			spawn_point_id = spawn_ids[randi() % spawn_ids.size()]
+			spawn_pos = spawn_points[spawn_point_id]
+		else:
+			# Brak punktów spawnu, użyj domyślnej pozycji
+			spawn_pos = Vector3(500, 0, 500)  # Środek lokacji
+	else:
+		# Użyj określonego punktu spawnu
+		var spawn_points = coord_translator.location_data[target_location].get("spawn_points", {})
+		if spawn_points.has(spawn_point_id):
+			spawn_pos = spawn_points[spawn_point_id]
+		else:
+			push_error("Spawn point ID '" + spawn_point_id + "' not found in location '" + target_location + "'")
+			spawn_pos = Vector3(500, 0, 500)  # Fallback
+	
+	# Sprawdź czy grupa jest aktualnie w trybie frontowym
+	var was_front_mode = group.is_front_mode
+	
+	# Jeśli grupa jest blisko gracza, wymuś despawn
+	if was_front_mode:
+		group.switch_to_back_mode()
+		_despawn_front_group(group_id)
+		_spawn_back_group(group)
+	
+	# Zmień lokację grupy
+	group.travel_to_location(target_location, spawn_pos)
+	
+	# Zaktualizuj reprezentację w zależności od trybu
+	_process_mode_switches()
+	
+	return true

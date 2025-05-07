@@ -8,9 +8,10 @@ var player
 
 # UI elements
 var map_container: Panel
-var location_rects = {}  # Dictionary of location rectangles
+var location_rects = {}
 var player_marker: ColorRect
-var path_container: Node2D  # For paths between locations
+var path_container: Node2D
+var navigation_container: Node2D
 
 func _ready():
 	# Get system references
@@ -29,10 +30,90 @@ func _ready():
 	
 	# Setup paths between locations
 	setup_paths()
+	
+	# Przygotuj nawigację dla NPC
+	setup_navigation()
 
+	
 func _process(_delta):
 	# Update player position on the map
 	update_player_position()
+
+# Przygotowuje nawigację dla NPC
+func setup_navigation():
+	# Utwórz kontener dla nawigacji
+	navigation_container = Node2D.new()
+	add_child(navigation_container)
+	
+	# Utwórz główny region nawigacji
+	var nav_region = NavigationRegion2D.new()
+	navigation_container.add_child(nav_region)
+	
+	# Utwórz siatkę nawigacji
+	var nav_poly = NavigationPolygon.new()
+	
+	# Dodaj węzły dla każdej lokacji
+	for location_id in coord_translator.location_data:
+		var location = coord_translator.location_data[location_id]
+		var world_pos = location["world_pos"]
+		var size = location["size"]
+		
+		# Dodaj obszar lokacji jako dozwolony teren
+		var outline = PackedVector2Array([
+			world_pos,
+			world_pos + Vector2(size.x, 0),
+			world_pos + size,
+			world_pos + Vector2(0, size.y)
+		])
+		nav_poly.add_outline(outline)
+	
+	# Dodaj ścieżki między lokacjami
+	for from_id in coord_translator.location_data:
+		var from_location = coord_translator.location_data[from_id]
+		
+		# Sprawdź połączenia portalowe
+		for portal_id in from_location.get("portals", {}):
+			var portal = from_location["portals"][portal_id]
+			var to_id = portal["target_location"]
+			
+			# Utwórz ścieżkę nawigacji między lokacjami
+			create_navigation_path(from_id, to_id)
+	
+	# Finalizuj siatkę nawigacji
+	nav_poly.make_polygons_from_outlines()
+	nav_region.navigation_polygon = nav_poly
+
+# Tworzy ścieżkę nawigacji między dwoma lokacjami
+func create_navigation_path(from_id: String, to_id: String):
+	var from_location = coord_translator.location_data[from_id]
+	var to_location = coord_translator.location_data[to_id]
+	
+	# Oblicz środki lokacji
+	var from_center = from_location["world_pos"] + from_location["size"] / 2
+	var to_center = to_location["world_pos"] + to_location["size"] / 2
+	
+	# Szerokość ścieżki
+	var path_width = 10.0
+	
+	# Oblicz kierunek i normalną ścieżki
+	var direction = (to_center - from_center).normalized()
+	var normal = Vector2(-direction.y, direction.x)
+	
+	# Utwórz wielokąt ścieżki
+	var path_poly = NavigationPolygon.new()
+	var outline = PackedVector2Array([
+		from_center + normal * path_width/2,
+		from_center - normal * path_width/2,
+		to_center - normal * path_width/2,
+		to_center + normal * path_width/2
+	])
+	path_poly.add_outline(outline)
+	path_poly.make_polygons_from_outlines()
+	
+	# Dodaj ścieżkę do regionu nawigacji
+	var path_region = NavigationRegion2D.new()
+	path_region.navigation_polygon = path_poly
+	navigation_container.add_child(path_region)
 
 # Setup UI layout
 func setup_ui():
@@ -48,7 +129,7 @@ func setup_ui():
 	
 	# Set semi-transparent dark background
 	var style_box = StyleBoxFlat.new()
-	style_box.bg_color = Color(0.1, 0.1, 0.1, 0.8)
+	style_box.bg_color = Color(0.2, 0.2, 0.2)
 	map_container.add_theme_stylebox_override("panel", style_box)
 	
 	add_child(map_container)
@@ -86,7 +167,7 @@ func setup_locations():
 		# Calculate screen position and size
 		# Map from world coordinates to screen coordinates
 		var screen_pos = map_to_screen(world_pos)
-		var screen_size = Vector2(size.x * 5, size.y * 5)  # Scale factor for visualization
+		var screen_size = Vector2(size.x, size.y)  # Scale factor for visualization
 		
 		rect.position = screen_pos
 		rect.size = screen_size
@@ -210,9 +291,9 @@ func update_player_position():
 
 # Convert world coordinates to screen coordinates
 func map_to_screen(world_pos: Vector2) -> Vector2:
-	# Apply scaling and offset for visualization
+	# Apply scaling and offset for visualizationasd
 	# This would need tuning based on actual map size
-	var scale_factor = 5.0
+	var scale_factor = 2.0
 	var offset = Vector2(50, 50)  # Margin from the edges
 	
 	return world_pos * scale_factor + offset

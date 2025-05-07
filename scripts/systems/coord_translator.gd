@@ -1,67 +1,90 @@
+# scripts/systems/coord_translator.gd
 extends Node
 class_name CoordTranslator
 
-# Dictionary to store location translation data
-# Structure:
-# {
-#   "location1": {
-#     "world_pos": Vector2(x, y),  # Position in the back mode world
-#     "size": Vector2(width, height),  # Size in the back mode world
-#     "portals": {
-#       "portal1": {
-#         "front_pos": Vector3(x, y, z),  # Position in front mode
-#         "target_location": "location2",
-#         "target_portal": "portal1"  # Target portal ID
-#       }
-#     }
-#   }
-# }
+# Słownik do przechowywania danych o lokacjach
 var location_data = {}
 
 func _ready():
-	# Initialize with example data
-	_initialize_test_data()
+	# Inicjalizacja pustego słownika - będzie wypełniony przez lokacje
+	location_data = {}
 
-func _initialize_test_data():
-	# Example for our two test locations
-	location_data = {
-		"location1": {
-			"world_pos": Vector2(0, 0),  # Starting position in back mode
-			"size": Vector2(100, 100),   # Size in back mode (scaled down from 1000x1000)
-			"scale_factor": Vector2(10, 10),  # Translation scale factor (1000/100)
-			"portals": {
-				"portal1": {
-					"front_pos": Vector3(900, 0, 100),  # Position in front mode
-					"target_location": "location2",
-					"target_portal": "portal1"
-				}
-			},
-			"pois": {
-				"poi1": Vector2(25, 25),  # In back mode coords
-				"poi2": Vector2(75, 25)
-			}
-		},
-		"location2": {
-			"world_pos": Vector2(150, 0),  # Starting position in back mode
-			"size": Vector2(100, 100),     # Size in back mode
-			"scale_factor": Vector2(10, 10),  # Translation scale factor
-			"portals": {
-				"portal1": {
-					"front_pos": Vector3(50, 0, 50),  # Position in front mode
-					"target_location": "location1",
-					"target_portal": "portal1"
-				}
-			},
-			"pois": {
-				"poi1": Vector2(25, 75),  # In back mode coords
-				"poi2": Vector2(75, 75)
-			}
-		}
+# Rejestruje lokację z jej danymi
+func register_location(location_id: String, data: Dictionary):
+	# Dodaj dane lokacji do naszego słownika
+	location_data[location_id] = data
+	print("Zarejestrowano lokację: " + location_id)
+
+# Rejestruje POI
+func register_poi(location_id: String, poi_id: String, back_pos: Vector2, poi_type: String = "generic"):
+	# Upewnij się, że lokacja istnieje
+	if not location_data.has(location_id):
+		push_error("Location ID '" + location_id + "' not found in location_data")
+		return
+		
+	# Upewnij się, że słownik POI istnieje
+	if not location_data[location_id].has("pois"):
+		location_data[location_id]["pois"] = {}
+	
+	# Dodaj POI do danych lokacji
+	location_data[location_id]["pois"][poi_id] = {
+		"position": back_pos,
+		"type": poi_type
 	}
 
-# Translate from front mode (3D) to back mode (2D)
+# Rejestruje portal
+func register_portal(location_id: String, portal_id: String, front_pos: Vector3, target_location: String, target_portal: String):
+	# Upewnij się, że lokacja istnieje
+	if not location_data.has(location_id):
+		push_error("Location ID '" + location_id + "' not found in location_data")
+		return
+		
+	# Upewnij się, że słownik portali istnieje
+	if not location_data[location_id].has("portals"):
+		location_data[location_id]["portals"] = {}
+	
+	# Dodaj portal do danych lokacji
+	location_data[location_id]["portals"][portal_id] = {
+		"front_pos": front_pos,
+		"target_location": target_location,
+		"target_portal": target_portal
+	}
+
+# Rejestruje marker zmiany lokacji
+func register_location_change_marker(location_id: String, marker_id: String, back_pos: Vector2, target_location: String, spawn_point_id: String):
+	# Upewnij się, że lokacja istnieje
+	if not location_data.has(location_id):
+		push_error("Location ID '" + location_id + "' not found in location_data")
+		return
+		
+	# Upewnij się, że słownik markerów istnieje
+	if not location_data[location_id].has("location_change_markers"):
+		location_data[location_id]["location_change_markers"] = {}
+	
+	# Dodaj marker do danych lokacji
+	location_data[location_id]["location_change_markers"][marker_id] = {
+		"position": back_pos,
+		"target_location": target_location,
+		"spawn_point_id": spawn_point_id
+	}
+
+# Rejestruje punkt spawnu
+func register_spawn_point(location_id: String, spawn_id: String, front_pos: Vector3):
+	# Upewnij się, że lokacja istnieje
+	if not location_data.has(location_id):
+		push_error("Location ID '" + location_id + "' not found in location_data")
+		return
+		
+	# Upewnij się, że słownik punktów spawnu istnieje
+	if not location_data[location_id].has("spawn_points"):
+		location_data[location_id]["spawn_points"] = {}
+	
+	# Dodaj punkt spawnu do danych lokacji
+	location_data[location_id]["spawn_points"][spawn_id] = front_pos
+	
+# Tłumaczy z trybu front (3D) na tryb back (2D)
 func front_to_back(location_id: String, front_pos: Vector3) -> Vector2:
-	# Safety check: Ensure location_id exists in our data
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że location_id istnieje w naszych danych
 	if not location_data.has(location_id):
 		push_error("Location ID '" + location_id + "' not found in location_data")
 		return Vector2.ZERO
@@ -69,16 +92,16 @@ func front_to_back(location_id: String, front_pos: Vector3) -> Vector2:
 	var location = location_data[location_id]
 	var scale_factor = location["scale_factor"]
 	
-	# Convert front position to back position
-	# Ignoring Y (height) from the 3D position
+	# Konwertuj pozycję front na pozycję back
+	# Ignorujemy Y (wysokość) z pozycji 3D
 	var relative_pos = Vector2(front_pos.x / scale_factor.x, front_pos.z / scale_factor.y)
 	
-	# Add the world position offset
+	# Dodaj offset pozycji na mapie strategicznej
 	return location["world_pos"] + relative_pos
 
-# Translate from back mode (2D) to front mode (3D)
+# Tłumaczy z trybu back (2D) na tryb front (3D)
 func back_to_front(location_id: String, back_pos: Vector2) -> Vector3:
-	# Safety check: Ensure location_id exists in our data
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że location_id istnieje w naszych danych
 	if not location_data.has(location_id):
 		push_error("Location ID '" + location_id + "' not found in location_data")
 		return Vector3(0, 2, 0)
@@ -86,25 +109,25 @@ func back_to_front(location_id: String, back_pos: Vector2) -> Vector3:
 	var location = location_data[location_id]
 	var scale_factor = location["scale_factor"]
 	
-	# Get local coordinates in back mode
+	# Uzyskaj lokalne koordynaty w trybie back
 	var local_back_pos = back_pos - location["world_pos"]
 	
-	# Convert to front mode coordinates
-	# Y (height) is set to 0, but should be adjusted based on terrain
+	# Konwertuj na koordynaty trybu front
+	# Y (wysokość) jest ustawiona na 0, ale powinna być dostosowana na podstawie terenu
 	return Vector3(
 		local_back_pos.x * scale_factor.x,
-		0,  # Ground level, should be adjusted based on terrain height
+		0,  # Poziom ziemi, powinien być dostosowany na podstawie wysokości terenu
 		local_back_pos.y * scale_factor.y
 	)
-
-# Get target position when moving through a portal
+	
+	# Pobierz pozycję docelową podczas przechodzenia przez portal
 func get_portal_target_position(from_location: String, portal_id: String) -> Dictionary:
-	# Safety check: Ensure location exists
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że lokacja istnieje
 	if not location_data.has(from_location):
 		push_error("Location ID '" + from_location + "' not found in location_data")
 		return {"location": "", "position": Vector3.ZERO}
 		
-	# Safety check: Ensure portal exists
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że portal istnieje
 	if not location_data[from_location].has("portals") or not location_data[from_location]["portals"].has(portal_id):
 		push_error("Portal ID '" + portal_id + "' not found in location '" + from_location + "'")
 		return {"location": "", "position": Vector3.ZERO}
@@ -113,21 +136,33 @@ func get_portal_target_position(from_location: String, portal_id: String) -> Dic
 	var target_location = portal_data["target_location"]
 	var target_portal = portal_data["target_portal"]
 	
-	# Safety check: Ensure target location and portal exist
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że docelowa lokacja i portal istnieją
 	if not location_data.has(target_location) or not location_data[target_location]["portals"].has(target_portal):
 		push_error("Target location/portal not found: " + target_location + "/" + target_portal)
 		return {"location": target_location, "position": Vector3.ZERO}
 	
 	var target_pos = location_data[target_location]["portals"][target_portal]["front_pos"]
 	
+	# Dodaj losowy offset, aby zapobiec zapętleniu teleportacji
+	var random_angle = randf() * 2.0 * PI  # Losowy kąt w radianach
+	var random_distance = randf_range(2.0, 5.0)  # Losowa odległość między 2 a 5 jednostek
+	var offset = Vector3(
+		cos(random_angle) * random_distance,
+		0.0,  # Zachowaj tę samą wysokość
+		sin(random_angle) * random_distance
+	)
+	
+	# Zastosuj offset do pozycji docelowej
+	var offset_target_pos = target_pos + offset
+	
 	return {
 		"location": target_location,
-		"position": target_pos
+		"position": offset_target_pos
 	}
 
-# Check if a position in back mode is within a location's bounds
+# Sprawdź czy pozycja w trybie back jest w granicach lokacji
 func is_within_location(location_id: String, back_pos: Vector2) -> bool:
-	# Safety check: Ensure location exists
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że lokacja istnieje
 	if not location_data.has(location_id):
 		push_error("Location ID '" + location_id + "' not found in location_data")
 		return false
@@ -142,39 +177,44 @@ func is_within_location(location_id: String, back_pos: Vector2) -> bool:
 		local_pos.y < location["size"].y
 	)
 
-# Find which location a back mode position is in
+# Znajdź w której lokacji znajduje się pozycja w trybie back
 func get_location_at_position(back_pos: Vector2) -> String:
 	for location_id in location_data:
 		if is_within_location(location_id, back_pos):
 			return location_id
 	
-	return ""  # No location found
+	return ""  # Nie znaleziono lokacji
 	
-# Get POI positions in a location (back mode coordinates)
+# Pobierz pozycje POI w lokacji (koordynaty trybu back)
 func get_poi_positions(location_id: String) -> Dictionary:
-	# Safety check: Ensure location exists
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że lokacja istnieje
 	if not location_data.has(location_id):
 		push_error("Location ID '" + location_id + "' not found in location_data")
 		return {}
 		
-	# Safety check: Ensure location has pois
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że lokacja ma POI
 	if not location_data[location_id].has("pois"):
 		push_error("No POIs found in location '" + location_id + "'")
 		return {}
-		
-	return location_data[location_id]["pois"]
 	
-# Get POI positions in front mode coordinates
+	# Konwertuj strukturę POI do formatu tylko z pozycjami (dla kompatybilności)
+	var result = {}
+	for poi_id in location_data[location_id]["pois"]:
+		result[poi_id] = location_data[location_id]["pois"][poi_id]["position"]
+		
+	return result
+
+# Pobierz pozycje POI w koordynatach trybu front
 func get_front_poi_position(location_id: String, poi_id: String) -> Vector3:
-	# Safety check: Ensure location exists
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że lokacja istnieje
 	if not location_data.has(location_id):
 		push_error("Location ID '" + location_id + "' not found in location_data")
 		return Vector3.ZERO
 		
-	# Safety check: Ensure location has pois and the specific poi exists
+	# Sprawdzenie bezpieczeństwa: Upewnij się, że lokacja ma POI i że to konkretne POI istnieje
 	if not location_data[location_id].has("pois") or not location_data[location_id]["pois"].has(poi_id):
 		push_error("POI ID '" + poi_id + "' not found in location '" + location_id + "'")
 		return Vector3.ZERO
 	
-	var back_pos = location_data[location_id]["pois"][poi_id]
+	var back_pos = location_data[location_id]["pois"][poi_id]["position"]
 	return back_to_front(location_id, back_pos)

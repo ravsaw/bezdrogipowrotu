@@ -1,6 +1,37 @@
-[gd_scene load_steps=2 format=3 uid="uid://gisrfmtqexl"]
+[gd_scene load_steps=8 format=3 uid="uid://gisrfmtqexl"]
 
 [ext_resource type="Script" uid="uid://c6rvf6s2u2yqr" path="res://scenes/locations/front_mode/location.gd" id="1_pnq7l"]
+[ext_resource type="Texture2D" uid="uid://bya60rycrgmc2" path="res://assets/textures/stylized-grass1_albedo.png" id="2_23wdh"]
+[ext_resource type="PackedScene" uid="uid://cm0pjcmnecdms" path="res://scenes/objects/poi.tscn" id="3_vo7k0"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_ughni"]
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_qos2k"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_agpcq"]
+albedo_texture = ExtResource("2_23wdh")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_c4o1l"]
+size = Vector2(1000, 1000)
 
 [node name="Location1" type="Node3D"]
 script = ExtResource("1_pnq7l")
+strategic_map_position = Vector2(100, 100)
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 500, 0, 500)
+physics_material_override = SubResource("PhysicsMaterial_ughni")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+shape = SubResource("WorldBoundaryShape3D_qos2k")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
+material_override = SubResource("StandardMaterial3D_agpcq")
+mesh = SubResource("PlaneMesh_c4o1l")
+
+[node name="POI" parent="." instance=ExtResource("3_vo7k0")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.3569, 1, 26.4962)
+
+[node name="POI2" parent="." instance=ExtResource("3_vo7k0")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.484, 1, 32.2312)
+poi_id = "poi2"
