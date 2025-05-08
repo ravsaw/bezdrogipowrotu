@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://b0nx5l726g1se"]
-
-[ext_resource type="Script" uid="uid://du3fvv8finph7" path="res://scenes/npc/group/back_npc_group.gd" id="1_a8usy"]
-
-[node name="BackNpcGroup" type="Node2D"]
-script = ExtResource("1_a8usy")

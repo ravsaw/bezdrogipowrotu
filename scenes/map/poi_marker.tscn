@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b8b2rm4oxq2g5"]
+
+[ext_resource type="Script" uid="uid://b2jms8q8l6s23" path="res://scenes/map/poi_marker.gd" id="1_iwrw6"]
+
+[node name="PoiMarker" type="Node2D"]
+script = ExtResource("1_iwrw6")

@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://cueni3sxdf4ql"]
-
-[ext_resource type="Script" uid="uid://2sq84ew1qgja" path="res://scenes/portals/location_portal.gd" id="1_uunom"]
-
-[node name="LocationPortal" type="Area3D"]
-script = ExtResource("1_uunom")

@@ -1,29 +1,29 @@
 extends Node3D
 class_name WorldManager
 
-# Location scenes
+# Sceny lokacji
 var location_scenes = {
 	"location1": preload("res://scenes/locations/front_mode/location1.tscn"),
 	"location2": preload("res://scenes/locations/front_mode/location2.tscn"),
-	"location3": preload("res://scenes/locations/front_mode/location3.tscn"),
 }
 
-# References
+# Referencje
 var coord_translator: CoordTranslator
+var poi_manager: POIManager
 var player
 var strategic_map
 
-# Current state
+# Aktualny stan
 var current_location_id: String = "location1"
 var current_location: Node3D
 
-# Nodes
+# Węzły
 var locations_container: Node3D
 var systems_container: Node
 var ui_container: Control
 
 func _ready():
-	# Create containers for organization
+	# Utwórz kontenery do organizacji
 	locations_container = Node3D.new()
 	locations_container.name = "Locations"
 	add_child(locations_container)
@@ -36,120 +36,130 @@ func _ready():
 	ui_container.name = "UI"
 	add_child(ui_container)
 	
-	# Initialize systems
+	# ETAP 1: Inicjalizuj wszystkie systemy
 	initialize_systems()
 	
-	# Register all locations with the coordinate translator
-	register_all_locations()
+	# ETAP 2: Skonfiguruj mapę strategiczną (zarejestruje POI)
+	setup_strategic_map()
 	
-	# THEN load the initial location
+	# ETAP 3: Załaduj lokacje
 	load_location(current_location_id)
 	
-	# Setup player
+	# ETAP 4: Skonfiguruj gracza
 	setup_player()
 	
-	# Setup strategic map
-	setup_strategic_map()
-
-# Initialize game systems
+	# ETAP 5: Połącz wszystkie systemy
+	connect_systems()
+	
+# Nowa funkcja do łączenia systemów
+func connect_systems():
+	# Przekaż referencję do gracza do mapy strategicznej
+	if strategic_map and player:
+		strategic_map.set_player(player)
+	
+	# Możesz dodać więcej połączeń między systemami tutaj
+	print("Systemy połączone")
+	
+# Modyfikacja funkcji initialize_systems w world.gd
 func initialize_systems():
-	# Create coordinate translator
+	# Utwórz translator koordynatów
 	coord_translator = CoordTranslator.new()
 	coord_translator.name = "CoordTranslator"
 	systems_container.add_child(coord_translator)
-
-# Register all locations with the coordinate translator
-func register_all_locations():
-	print("Registering all locations with CoordTranslator")
 	
-	for location_id in location_scenes:
-		# Temporarily instance the location to get its data
-		var temp_location = location_scenes[location_id].instantiate()
-		
-		# Extract location data
-		var location_data = {
-			"world_pos": temp_location.strategic_map_position,
-			"size": temp_location.strategic_map_size,
-			"scale_factor": temp_location.scale_factor,
-			"pois": {}  # Start with empty POIs, will be populated when location loads
-		}
-		
-		# Register location with coordinate translator
-		coord_translator.register_location(location_id, location_data)
-		
-		# Free the temporary instance
-		temp_location.queue_free()
-		
-		print("Registered location: " + location_id + " at position: " + str(location_data["world_pos"]))
+	# Utwórz menedżera POI
+	poi_manager = POIManager.new()
+	poi_manager.name = "POIManager"
+	systems_container.add_child(poi_manager)
+	
+	# Czekaj jedną klatkę na inicjalizację systemów
+	await get_tree().process_frame
+	
+	print("Systemy zainicjalizowane")
 
-# Setup the player
+# Skonfiguruj gracza
 func setup_player():
-	# Instantiate player scene
+	# Zinstancjonuj scenę gracza
 	var player_scene = preload("res://scenes/player/player.tscn")
 	player = player_scene.instantiate()
 	player.name = "Player"
 	add_child(player)
 	
-	# Set initial position
+	# Ustaw początkową pozycję
 	var spawn_pos = coord_translator.back_to_front(current_location_id, Vector2(150, 150))
 	player.global_position = spawn_pos
+	
+	# DODAJ TĘ LINIĘ: Przekaż referencję do gracza do mapy strategicznej
+	if strategic_map:
+		strategic_map.set_player(player)
 
-# Load a location
+# Załaduj lokację
 func load_location(location_id: String):
-	# Remove current location if it exists
+	# Usuń aktualną lokację, jeśli istnieje
 	if current_location:
 		current_location.queue_free()
 	
-	# Create new location
+	# Utwórz nową lokację
 	var location_scene = location_scenes[location_id]
 	current_location = location_scene.instantiate()
 	current_location.name = location_id
 	locations_container.add_child(current_location)
 	
-	# Update current location tracking
+	# Zaktualizuj śledzenie aktualnej lokacji
 	current_location_id = location_id
 
-# Setup strategic map (back mode view)
+# Skonfiguruj mapę strategiczną
 func setup_strategic_map():
 	var map_scene = preload("res://scenes/locations/back_mode/strategic_map.tscn")
 	strategic_map = map_scene.instantiate()
 	strategic_map.name = "StrategicMap"
 	ui_container.add_child(strategic_map)
 	
-	# Hide by default, can be toggled with a key
+	# Ukryj domyślnie, można przełączać klawiszem
 	strategic_map.visible = false
 
-# Toggle strategic map visibility
+# Przełącz widoczność mapy strategicznej
 func toggle_strategic_map():
 	strategic_map.visible = !strategic_map.visible
 
-# Change to a different location
+# Zmień lokację
 func change_location(location_id: String, spawn_position: Vector2 = Vector2.ZERO):
-	# Check if location exists
+	# Sprawdź czy lokacja istnieje
 	if not location_scenes.has(location_id):
 		push_error("Location ID '" + location_id + "' not found in location_scenes")
 		return
 	
-	# Load the new location
+	# Załaduj nową lokację
 	load_location(location_id)
 	
-	# Reposition player if spawn position provided
+	# Zmień pozycję gracza
 	if spawn_position != Vector2.ZERO:
 		var front_pos = coord_translator.back_to_front(location_id, spawn_position)
 		player.global_position = front_pos
 	else:
-		# Use default spawn position
+		# Użyj domyślnej pozycji spawnu
 		player.global_position = coord_translator.back_to_front(location_id, Vector2(150, 150))
 
-# Process input for world controls
+# Ustaw stan aktywności POI
+func set_poi_active(poi_id: String, active: bool):
+	poi_manager.set_poi_active(poi_id, active)
+
+# Przetwarzaj wejście dla kontroli świata
 func _input(event):
-	# Toggle strategic map with M key
+	# Przełącz mapę strategiczną klawiszem M
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_M:
 			toggle_strategic_map()
-		# Switch to location1 with 1 key
+		# Przełącz na location1 klawiszem 1
 		elif event.keycode == KEY_1:
 			change_location("location1")
-		# Switch to location2 with 2 key
+		# Przełącz na location2 klawiszem 2
 		elif event.keycode == KEY_2:
 			change_location("location2")
+		# Przetestuj przełączenie stanu aktywności POI (dla przykładu)
+		elif event.keycode == KEY_P:
+			# Toggle stan pierwszego POI
+			var poi_ids = poi_manager.all_pois.keys()
+			if not poi_ids.is_empty():
+				var first_poi = poi_manager.get_poi(poi_ids[0])
+				set_poi_active(poi_ids[0], !first_poi.is_active)

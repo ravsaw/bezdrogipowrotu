@@ -1,8 +1,7 @@
-[gd_scene load_steps=8 format=3 uid="uid://gisrfmtqexl"]
+[gd_scene load_steps=7 format=3 uid="uid://gisrfmtqexl"]
 
 [ext_resource type="Script" uid="uid://c6rvf6s2u2yqr" path="res://scenes/locations/front_mode/location.gd" id="1_pnq7l"]
 [ext_resource type="Texture2D" uid="uid://bya60rycrgmc2" path="res://assets/textures/stylized-grass1_albedo.png" id="2_23wdh"]
-[ext_resource type="PackedScene" uid="uid://cm0pjcmnecdms" path="res://scenes/objects/poi.tscn" id="3_vo7k0"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_ughni"]
 
@@ -17,9 +16,9 @@ size = Vector2(1000, 1000)
 
 [node name="Location1" type="Node3D"]
 script = ExtResource("1_pnq7l")
-strategic_map_position = Vector2(100, 100)
-strategic_map_size = Vector2(500, 500)
-scale_factor = Vector2(2, 2)
+strategic_map_position = Vector2(0, 100)
+strategic_map_size = Vector2(1000, 1000)
+scale_factor = Vector2(1, 1)
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 500, 0, 500)
@@ -31,10 +30,3 @@ shape = SubResource("WorldBoundaryShape3D_qos2k")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
 material_override = SubResource("StandardMaterial3D_agpcq")
 mesh = SubResource("PlaneMesh_c4o1l")
-
-[node name="POI" parent="." instance=ExtResource("3_vo7k0")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 304.121, 1, 178.088)
-
-[node name="POI2" parent="." instance=ExtResource("3_vo7k0")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.484, 0, 129.853)
-poi_id = "poi2"
