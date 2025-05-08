@@ -84,7 +84,7 @@ func _process(delta):
 func _initialize_test_groups():
 	# Create a test group in each location
 	_create_npc_group("group1", "location1", Vector2(25, 25))
-	_create_npc_group("group2", "location2", Vector2(75, 75))
+	#_create_npc_group("group2", "location2", Vector2(75, 75))
 
 # Create a new NPC group
 func _create_npc_group(id: String, location: String, position: Vector2):

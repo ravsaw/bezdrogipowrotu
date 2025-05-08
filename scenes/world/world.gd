@@ -147,9 +147,18 @@ func _debug_spawn_test_group():
 	
 	# Get a random position in that location
 	var pois = coord_translator.get_poi_positions(rand_location)
-	var poi_keys = pois.keys()
-	var rand_poi = poi_keys[randi() % poi_keys.size()]
-	var spawn_pos = pois[rand_poi]
+	var spawn_pos = Vector2.ZERO
+	
+	# Check if POIs exist, otherwise use default position
+	if pois.is_empty():
+		print("No POIs found in location " + rand_location + ", using default position")
+		# Use the center of the location as default position
+		var location_data = coord_translator.location_data[rand_location]
+		spawn_pos = location_data["world_pos"] + location_data["size"] / 2
+	else:
+		var poi_keys = pois.keys()
+		var rand_poi = poi_keys[randi() % poi_keys.size()]
+		spawn_pos = pois[rand_poi]
 	
 	# Create a unique ID
 	var group_id = "group" + str(Time.get_ticks_msec())

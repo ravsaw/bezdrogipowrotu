@@ -64,6 +64,10 @@ func setup_visuals():
 
 # Create basic animations for the NPC
 func create_basic_animations():
+	# Create animation libraries
+	var idle_lib = AnimationLibrary.new()
+	var walk_lib = AnimationLibrary.new()
+	
 	# Idle animation
 	var idle_anim = Animation.new()
 	var idle_track = idle_anim.add_track(Animation.TYPE_VALUE)
@@ -72,7 +76,9 @@ func create_basic_animations():
 	idle_anim.track_insert_key(idle_track, 1.0, Vector3(0, 0.05, 0))
 	idle_anim.track_insert_key(idle_track, 2.0, Vector3(0, 0, 0))
 	idle_anim.loop_mode = Animation.LOOP_LINEAR
-	animation_player.add_animation_library("idle", idle_anim)
+	
+	# Add animation to library
+	idle_lib.add_animation("idle", idle_anim)
 	
 	# Walk animation
 	var walk_anim = Animation.new()
@@ -84,8 +90,14 @@ func create_basic_animations():
 	walk_anim.track_insert_key(walk_track, 1.5, Vector3(0, 0, -0.05))
 	walk_anim.track_insert_key(walk_track, 2.0, Vector3(0, 0, 0))
 	walk_anim.loop_mode = Animation.LOOP_LINEAR
-	animation_player.add_animation_library("walk", walk_anim)
-
+	
+	# Add animation to library
+	walk_lib.add_animation("walk", walk_anim)
+	
+	# Add libraries to animation player
+	animation_player.add_animation_library("idle", idle_lib)
+	animation_player.add_animation_library("walk", walk_lib)
+	
 # Setup as a leader with distinct appearance
 func setup_as_leader():
 	# Change color to red to indicate leader

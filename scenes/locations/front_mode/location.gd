@@ -30,67 +30,96 @@ func _ready():
 # Rejestruje lokację w systemie tłumaczenia koordynatów
 func register_with_coord_translator():
 	if coord_translator:
+		# Create formatted data dictionaries
+		var formatted_pois = {}
+		var formatted_portals = {}
+		var formatted_markers = {}
+		var formatted_spawns = {}
+		
+		# Convert POI nodes to expected format
+		for poi_id in pois:
+			var poi_node = pois[poi_id]
+			var back_pos = coord_translator.front_to_back(location_id, poi_node.global_position)
+			formatted_pois[poi_id] = {
+				"position": back_pos,
+				"type": poi_node.poi_type
+			}
+		
+		# Convert portal nodes to expected format
+		for portal_id in portals:
+			var portal_node = portals[portal_id]
+			formatted_portals[portal_id] = {
+				"front_pos": portal_node.global_position,
+				"target_location": portal_node.target_location,
+				"target_portal": portal_node.target_portal
+			}
+		
+		# Convert location change markers to expected format
+		for marker_id in location_change_markers:
+			var marker_node = location_change_markers[marker_id]
+			var back_pos = coord_translator.front_to_back(location_id, marker_node.global_position)
+			formatted_markers[marker_id] = {
+				"position": back_pos,
+				"target_location": marker_node.target_location,
+				"spawn_point_id": marker_node.spawn_point_id
+			}
+		
+		# Convert spawn points to expected format
+		for spawn_id in spawn_points:
+			var spawn_node = spawn_points[spawn_id]
+			formatted_spawns[spawn_id] = spawn_node.global_position
+		
+		# Register with the formatted data
 		var location_data = {
 			"world_pos": strategic_map_position,
 			"size": strategic_map_size,
 			"scale_factor": scale_factor,
-			"portals": {},
-			"pois": {},
-			"location_change_markers": {},
-			"spawn_points": {}
+			"portals": formatted_portals,
+			"pois": formatted_pois,
+			"location_change_markers": formatted_markers,
+			"spawn_points": formatted_spawns
 		}
+		
 		coord_translator.register_location(location_id, location_data)
 
-# Znajduje i rejestruje wszystkie obiekty w scenie lokacji
+# Finds and collects all objects in the scene location
 func find_and_register_objects():
-	# Znajdź wszystkie POI
+	# Find all POIs
 	for node in get_tree().get_nodes_in_group("poi"):
 		if node is POI and is_ancestor_of(node):
-			register_poi(node)
+			collect_poi(node)
 	
-	# Znajdź wszystkie portale
+	# Find all portals
 	for node in get_tree().get_nodes_in_group("portal"):
 		if node is LocationPortal and is_ancestor_of(node):
-			register_portal(node)
+			collect_portal(node)
 	
-	# Znajdź wszystkie markery zmiany lokacji
+	# Find all location change markers
 	for node in get_tree().get_nodes_in_group("location_change_marker"):
 		if node is LocationChangeMarker and is_ancestor_of(node):
-			register_location_change_marker(node)
+			collect_location_change_marker(node)
 			
-	# Znajdź wszystkie punkty spawnu
+	# Find all spawn points
 	for node in get_tree().get_nodes_in_group("spawn_point"):
 		if node is SpawnPoint and is_ancestor_of(node):
-			register_spawn_point(node)
+			collect_spawn_point(node)
 
-# Rejestruje POI
-func register_poi(poi_node: POI):
+# Collects a POI (only adds to local dictionary)
+func collect_poi(poi_node: POI):
 	var poi_id = poi_node.poi_id
-	var poi_position = poi_node.global_position
-	
 	pois[poi_id] = poi_node
-	
-	# Przelicz pozycję do trybu back
-	var back_pos = coord_translator.front_to_back(location_id, poi_position)
-	
-	# Zaktualizuj dane w systemie tłumaczenia koordynatów
-	coord_translator.register_poi(location_id, poi_id, back_pos, poi_node.poi_type)
 
-# Rejestruje portal
-func register_portal(portal_node: LocationPortal):
-	var portal_id = portal_node.portal_id
-	var portal_position = portal_node.global_position
-	
+func collect_portal(portal_node: POI):
+	var portal_id = portal_node.poi_id
 	portals[portal_id] = portal_node
-	
-	# Zaktualizuj dane w systemie tłumaczenia koordynatów
-	coord_translator.register_portal(
-		location_id, 
-		portal_id, 
-		portal_position, 
-		portal_node.target_location, 
-		portal_node.target_portal
-	)
+
+func collect_location_change_marker(marker_node: POI):
+	var marker_id = marker_node.poi_id
+	location_change_markers[marker_id] = marker_node
+
+func collect_spawn_point(spawn_node: POI):
+	var spawn_id = spawn_node.poi_id
+	spawn_points[spawn_id] = spawn_node
 
 # Rejestruje marker zmiany lokacji dla NPC
 func register_location_change_marker(marker: LocationChangeMarker):
