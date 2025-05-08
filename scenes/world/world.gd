@@ -4,6 +4,8 @@ class_name WorldManager
 # Location scenes
 var location_scenes = {
 	"location1": preload("res://scenes/locations/front_mode/location1.tscn"),
+	"location2": preload("res://scenes/locations/front_mode/location2.tscn"),
+	"location3": preload("res://scenes/locations/front_mode/location3.tscn"),
 }
 
 # References
@@ -37,16 +39,16 @@ func _ready():
 	# Initialize systems
 	initialize_systems()
 	
-	# Load initial location FIRST
+	# Register all locations with the coordinate translator
+	register_all_locations()
+	
+	# THEN load the initial location
 	load_location(current_location_id)
 	
-	# Wait for a frame to ensure location is registered with coord_translator
-	await get_tree().process_frame
-	
-	# THEN setup player (after location data is available)
+	# Setup player
 	setup_player()
 	
-	# Finally, setup strategic map
+	# Setup strategic map
 	setup_strategic_map()
 
 # Initialize game systems
@@ -55,6 +57,30 @@ func initialize_systems():
 	coord_translator = CoordTranslator.new()
 	coord_translator.name = "CoordTranslator"
 	systems_container.add_child(coord_translator)
+
+# Register all locations with the coordinate translator
+func register_all_locations():
+	print("Registering all locations with CoordTranslator")
+	
+	for location_id in location_scenes:
+		# Temporarily instance the location to get its data
+		var temp_location = location_scenes[location_id].instantiate()
+		
+		# Extract location data
+		var location_data = {
+			"world_pos": temp_location.strategic_map_position,
+			"size": temp_location.strategic_map_size,
+			"scale_factor": temp_location.scale_factor,
+			"pois": {}  # Start with empty POIs, will be populated when location loads
+		}
+		
+		# Register location with coordinate translator
+		coord_translator.register_location(location_id, location_data)
+		
+		# Free the temporary instance
+		temp_location.queue_free()
+		
+		print("Registered location: " + location_id + " at position: " + str(location_data["world_pos"]))
 
 # Setup the player
 func setup_player():
@@ -97,8 +123,33 @@ func setup_strategic_map():
 func toggle_strategic_map():
 	strategic_map.visible = !strategic_map.visible
 
+# Change to a different location
+func change_location(location_id: String, spawn_position: Vector2 = Vector2.ZERO):
+	# Check if location exists
+	if not location_scenes.has(location_id):
+		push_error("Location ID '" + location_id + "' not found in location_scenes")
+		return
+	
+	# Load the new location
+	load_location(location_id)
+	
+	# Reposition player if spawn position provided
+	if spawn_position != Vector2.ZERO:
+		var front_pos = coord_translator.back_to_front(location_id, spawn_position)
+		player.global_position = front_pos
+	else:
+		# Use default spawn position
+		player.global_position = coord_translator.back_to_front(location_id, Vector2(150, 150))
+
 # Process input for world controls
 func _input(event):
 	# Toggle strategic map with M key
-	if event is InputEventKey and event.pressed and event.keycode == KEY_M:
-		toggle_strategic_map()
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_M:
+			toggle_strategic_map()
+		# Switch to location1 with 1 key
+		elif event.keycode == KEY_1:
+			change_location("location1")
+		# Switch to location2 with 2 key
+		elif event.keycode == KEY_2:
+			change_location("location2")

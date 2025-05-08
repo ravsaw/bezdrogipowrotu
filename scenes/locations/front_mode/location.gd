@@ -3,8 +3,8 @@ class_name Location
 
 @export var location_id: String = "location1"
 @export var strategic_map_position: Vector2 = Vector2(0, 0) # Position on strategic map
-@export var strategic_map_size: Vector2 = Vector2(100, 100) # Size on strategic map 
-@export var scale_factor: Vector2 = Vector2(10, 10) # Scaling factor front->back
+@export var strategic_map_size: Vector2 = Vector2(1000, 1000) # Size on strategic map 
+@export var scale_factor: Vector2 = Vector2(1, 1) # Scaling factor front->back
 
 # Collections of objects in location
 var pois = {}
@@ -21,15 +21,31 @@ func _ready():
 	# Wait a frame to ensure systems are ready
 	await get_tree().process_frame
 	
-	# Register this location with coordinate system
-	register_with_coord_translator()
-	
-	# Find and collect objects
+	# Find and register objects (POIs, etc)
 	find_and_register_objects()
 	
-	# Register again to make sure POIs are included
-	register_with_coord_translator()
+	# Update POIs in the coordinate translator
+	update_pois_in_translator()
 
+func update_pois_in_translator():
+	if coord_translator:
+		# Create formatted POI data
+		var formatted_pois = {}
+		
+		# Convert POI nodes to expected format
+		for poi_id in pois:
+			var poi_node = pois[poi_id]
+			var back_pos = coord_translator.front_to_back(location_id, poi_node.global_position)
+			formatted_pois[poi_id] = {
+				"position": back_pos,
+				"type": poi_node.poi_type
+			}
+			
+		# Update POIs in the existing location data
+		if coord_translator.location_data.has(location_id):
+			coord_translator.location_data[location_id]["pois"] = formatted_pois
+			print("Updated " + str(formatted_pois.size()) + " POIs for location: " + location_id)
+			
 # Register location with coordinate translation system
 func register_with_coord_translator():
 	if coord_translator:

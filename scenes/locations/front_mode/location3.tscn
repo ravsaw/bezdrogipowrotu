@@ -1,6 +1,6 @@
-[gd_scene load_steps=8 format=3 uid="uid://gisrfmtqexl"]
+[gd_scene load_steps=8 format=3 uid="uid://ygwcnuohpoto"]
 
-[ext_resource type="Script" uid="uid://c6rvf6s2u2yqr" path="res://scenes/locations/front_mode/location.gd" id="1_pnq7l"]
+[ext_resource type="Script" uid="uid://c6rvf6s2u2yqr" path="res://scenes/locations/front_mode/location.gd" id="1_ktmgq"]
 [ext_resource type="Texture2D" uid="uid://bya60rycrgmc2" path="res://assets/textures/stylized-grass1_albedo.png" id="2_23wdh"]
 [ext_resource type="PackedScene" uid="uid://cm0pjcmnecdms" path="res://scenes/objects/poi.tscn" id="3_vo7k0"]
 
@@ -15,9 +15,10 @@ albedo_texture = ExtResource("2_23wdh")
 uv2_padding = 3.02
 size = Vector2(1000, 1000)
 
-[node name="Location1" type="Node3D"]
-script = ExtResource("1_pnq7l")
-strategic_map_position = Vector2(100, 100)
+[node name="Location3" type="Node3D"]
+script = ExtResource("1_ktmgq")
+location_id = "location3"
+strategic_map_position = Vector2(250, 650)
 strategic_map_size = Vector2(500, 500)
 scale_factor = Vector2(2, 2)
 
@@ -34,7 +35,18 @@ mesh = SubResource("PlaneMesh_c4o1l")
 
 [node name="POI" parent="." instance=ExtResource("3_vo7k0")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 304.121, 1, 178.088)
+poi_id = "location2_poi1"
+poi_type = "resource"
+marker_color = Color(0, 0.8, 0.2, 0.8)
 
 [node name="POI2" parent="." instance=ExtResource("3_vo7k0")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.484, 0, 129.853)
-poi_id = "poi2"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 614.484, 0, 729.853)
+poi_id = "location2_poi2"
+poi_type = "danger"
+marker_color = Color(0.8, 0.2, 0.2, 0.8)
+
+[node name="POI3" parent="." instance=ExtResource("3_vo7k0")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 214.484, 0, 629.853)
+poi_id = "location2_poi3"
+poi_type = "quest"
+marker_color = Color(0.2, 0.4, 0.8, 0.8)
