@@ -10,11 +10,12 @@ bottom_radius = 1.0
 script = ExtResource("1_6cvqu")
 
 [node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(5, 0, 0, 0, 20, 0, 0, 0, 5, 0, 20, 0)
 mesh = SubResource("CylinderMesh_6cvqu")
 
 [node name="Label3D" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2066, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.2525, 12.1405)
 text = "POI
 "
-font_size = 125
+font_size = 500
 outline_size = 25

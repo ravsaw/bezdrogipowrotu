@@ -3,24 +3,24 @@ class_name StrategicMap
 
 # References
 var coord_translator: CoordTranslator
-var alife_system
 var player
 
 # UI elements
 var map_container: Panel
 var location_rects = {}
 var player_marker: ColorRect
-var path_container: Node2D
-var navigation_container: Node2D
+var poi_markers = {} # Dictionary to store POI markers by ID
 
 func _ready():
 	# Get system references
 	coord_translator = get_node("/root/World/Systems/CoordTranslator")
-	alife_system = get_node("/root/World/Systems/ALifeSystem")
 	player = get_node("/root/World/Player")
 	
 	# Setup layout
 	setup_ui()
+	
+	# Wait for a frame to ensure locations are registered
+	await get_tree().process_frame
 	
 	# Setup locations
 	setup_locations()
@@ -28,92 +28,10 @@ func _ready():
 	# Create player marker
 	setup_player_marker()
 	
-	# Setup paths between locations
-	setup_paths()
-	
-	# Przygotuj nawigację dla NPC
-	setup_navigation()
-
-	
 func _process(_delta):
 	# Update player position on the map
-	update_player_position()
-
-# Przygotowuje nawigację dla NPC
-func setup_navigation():
-	# Utwórz kontener dla nawigacji
-	navigation_container = Node2D.new()
-	add_child(navigation_container)
-	
-	# Utwórz główny region nawigacji
-	var nav_region = NavigationRegion2D.new()
-	navigation_container.add_child(nav_region)
-	
-	# Utwórz siatkę nawigacji
-	var nav_poly = NavigationPolygon.new()
-	
-	# Dodaj węzły dla każdej lokacji
-	for location_id in coord_translator.location_data:
-		var location = coord_translator.location_data[location_id]
-		var world_pos = location["world_pos"]
-		var size = location["size"]
-		
-		# Dodaj obszar lokacji jako dozwolony teren
-		var outline = PackedVector2Array([
-			world_pos,
-			world_pos + Vector2(size.x, 0),
-			world_pos + size,
-			world_pos + Vector2(0, size.y)
-		])
-		nav_poly.add_outline(outline)
-	
-	# Dodaj ścieżki między lokacjami
-	for from_id in coord_translator.location_data:
-		var from_location = coord_translator.location_data[from_id]
-		
-		# Sprawdź połączenia portalowe
-		for portal_id in from_location.get("portals", {}):
-			var portal = from_location["portals"][portal_id]
-			var to_id = portal["target_location"]
-			
-			# Utwórz ścieżkę nawigacji między lokacjami
-			create_navigation_path(from_id, to_id)
-	
-	# Finalizuj siatkę nawigacji
-	nav_poly.make_polygons_from_outlines()
-	nav_region.navigation_polygon = nav_poly
-
-# Tworzy ścieżkę nawigacji między dwoma lokacjami
-func create_navigation_path(from_id: String, to_id: String):
-	var from_location = coord_translator.location_data[from_id]
-	var to_location = coord_translator.location_data[to_id]
-	
-	# Oblicz środki lokacji
-	var from_center = from_location["world_pos"] + from_location["size"] / 2
-	var to_center = to_location["world_pos"] + to_location["size"] / 2
-	
-	# Szerokość ścieżki
-	var path_width = 10.0
-	
-	# Oblicz kierunek i normalną ścieżki
-	var direction = (to_center - from_center).normalized()
-	var normal = Vector2(-direction.y, direction.x)
-	
-	# Utwórz wielokąt ścieżki
-	var path_poly = NavigationPolygon.new()
-	var outline = PackedVector2Array([
-		from_center + normal * path_width/2,
-		from_center - normal * path_width/2,
-		to_center - normal * path_width/2,
-		to_center + normal * path_width/2
-	])
-	path_poly.add_outline(outline)
-	path_poly.make_polygons_from_outlines()
-	
-	# Dodaj ścieżkę do regionu nawigacji
-	var path_region = NavigationRegion2D.new()
-	path_region.navigation_polygon = path_poly
-	navigation_container.add_child(path_region)
+	if player_marker != null:
+		update_player_position()
 
 # Setup UI layout
 func setup_ui():
@@ -129,14 +47,10 @@ func setup_ui():
 	
 	# Set semi-transparent dark background
 	var style_box = StyleBoxFlat.new()
-	style_box.bg_color = Color(0.2, 0.2, 0.2)
+	style_box.bg_color = Color(0.1, 0.1, 0.15, 0.9)  # Dark blue-ish background
 	map_container.add_theme_stylebox_override("panel", style_box)
 	
 	add_child(map_container)
-	
-	# Create container for paths
-	path_container = Node2D.new()
-	map_container.add_child(path_container)
 	
 	# Add title
 	var title = Label.new()
@@ -165,7 +79,6 @@ func setup_locations():
 		rect.color = Color(0.3, 0.3, 0.3, 0.5)  # Semi-transparent gray
 		
 		# Calculate screen position and size
-		# Map from world coordinates to screen coordinates
 		var screen_pos = map_to_screen(world_pos)
 		var screen_size = Vector2(size.x, size.y)  # Scale factor for visualization
 		
@@ -185,100 +98,121 @@ func setup_locations():
 		rect.add_child(label)
 		
 		# Add POI markers
-		setup_pois(location_id, rect, location["pois"])
+		setup_pois(location_id, rect)
 
-# Setup POI markers within a location
-func setup_pois(location_id: String, location_rect: ColorRect, pois: Dictionary):
+# Setup POI markers for a location
+func setup_pois(location_id: String, location_rect: ColorRect):
+	# Check if location has POIs
+	if not coord_translator.location_data[location_id].has("pois"):
+		print("No POIs found in location: " + location_id)
+		return
+	
+	var pois = coord_translator.location_data[location_id]["pois"]
+	print("Setting up POIs for location " + location_id + ": " + str(pois.keys()))
+	
 	for poi_id in pois:
-		var poi_pos = pois[poi_id]
+		var poi_data = pois[poi_id]
+		var poi_pos = poi_data["position"]
+		var poi_type = poi_data["type"]
 		
 		# Calculate relative position within the location
-		var local_pos = poi_pos - coord_translator.location_data[location_id]["world_pos"]
+		var location_data = coord_translator.location_data[location_id]
+		var local_pos = poi_pos - location_data["world_pos"]
 		
 		# Scale to match the rectangle size
 		var scaled_pos = Vector2(
-			local_pos.x / coord_translator.location_data[location_id]["size"].x * location_rect.size.x,
-			local_pos.y / coord_translator.location_data[location_id]["size"].y * location_rect.size.y
+			local_pos.x / location_data["size"].x * location_rect.size.x,
+			local_pos.y / location_data["size"].y * location_rect.size.y
 		)
 		
 		# Create POI marker
-		var poi_marker = ColorRect.new()
-		poi_marker.color = Color(1, 0.8, 0)  # Yellow for POIs
-		poi_marker.size = Vector2(10, 10)
+		var poi_marker = create_poi_marker(poi_id, poi_type)
 		poi_marker.position = scaled_pos - poi_marker.size / 2
 		location_rect.add_child(poi_marker)
 		
-		# Add label
-		var label = Label.new()
-		label.text = poi_id
-		label.position = poi_marker.position + Vector2(15, 0)
-		label.add_theme_color_override("font_color", Color(1, 1, 0.8))
-		location_rect.add_child(label)
+		# Store marker reference
+		poi_markers[location_id + "_" + poi_id] = poi_marker
+
+# Create a visual marker for a POI
+func create_poi_marker(poi_id: String, poi_type: String) -> Control:
+	# Create container for the POI marker
+	var marker_container = Control.new()
+	marker_container.size = Vector2(20, 20)
+	
+	# Create colored marker based on POI type
+	var marker = ColorRect.new()
+	
+	# Different colors based on POI type
+	var color = Color(1, 0.8, 0)  # Default yellow
+	match poi_type:
+		"resource":
+			color = Color(0, 0.8, 0.2)  # Green for resources
+		"danger":
+			color = Color(0.9, 0.2, 0.2)  # Red for danger
+		"quest":
+			color = Color(0.2, 0.4, 0.9)  # Blue for quests
+	
+	marker.color = color
+	marker.size = Vector2(12, 12)
+	marker.position = Vector2(4, 4)  # Center in container
+	marker_container.add_child(marker)
+	
+	# Add label
+	var label = Label.new()
+	label.text = poi_id
+	label.position = Vector2(15, 0)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_font_size_override("font_size", 14)
+	marker_container.add_child(label)
+	
+	# Make a cool visual effect - pulsing
+	var animation = AnimationPlayer.new()
+	marker_container.add_child(animation)
+	
+	var anim = Animation.new()
+	var track_idx = anim.add_track(Animation.TYPE_VALUE)
+	anim.track_set_path(track_idx, "../ColorRect:scale")
+	anim.track_insert_key(track_idx, 0.0, Vector2(1, 1))
+	anim.track_insert_key(track_idx, 0.5, Vector2(1.2, 1.2))
+	anim.track_insert_key(track_idx, 1.0, Vector2(1, 1))
+	anim.loop_mode = Animation.LOOP_LINEAR
+	
+	var anim_lib = AnimationLibrary.new()
+	anim_lib.add_animation("pulse", anim)
+	animation.add_animation_library("poi_anims", anim_lib)
+	animation.play("poi_anims/pulse")
+	
+	return marker_container
 
 # Setup player marker
 func setup_player_marker():
 	player_marker = ColorRect.new()
-	player_marker.color = Color(0, 1, 0)  # Green for player
+	player_marker.color = Color(0, 0.8, 0.2)  # Green for player
 	player_marker.size = Vector2(15, 15)
 	player_marker.pivot_offset = player_marker.size / 2
 	map_container.add_child(player_marker)
 	
+	# Add player label
+	var label = Label.new()
+	label.text = "Player"
+	label.position = Vector2(player_marker.size.x + 5, -5)
+	label.add_theme_color_override("font_color", Color(0, 1, 0.2))
+	player_marker.add_child(label)
+	
 	# Update initial position
 	update_player_position()
 
-# Setup paths between locations
-func setup_paths():
-	# Draw lines between connected locations
-	var locations = coord_translator.location_data
-	var drawn_connections = []
-	
-	for from_id in locations:
-		var from_location = locations[from_id]
-		
-		# Check portal connections
-		for portal_id in from_location.get("portals", {}):
-			var portal = from_location["portals"][portal_id]
-			var to_id = portal["target_location"]
-			
-			# Skip if already drawn
-			var connection_id = from_id + "_" + to_id
-			var reverse_id = to_id + "_" + from_id
-			if connection_id in drawn_connections or reverse_id in drawn_connections:
-				continue
-				
-			# Draw the path
-			draw_path_between(from_id, to_id)
-			
-			# Mark as drawn
-			drawn_connections.append(connection_id)
-
-# Draw a path between two locations
-func draw_path_between(from_id: String, to_id: String):
-	var from_rect = location_rects[from_id]
-	var to_rect = location_rects[to_id]
-	
-	# Calculate centers
-	var from_center = from_rect.position + from_rect.size / 2
-	var to_center = to_rect.position + to_rect.size / 2
-	
-	# Create line
-	var line = Line2D.new()
-	line.width = 3.0
-	line.default_color = Color(0.5, 0.5, 1.0)  # Light blue for paths
-	
-	# Add points
-	line.add_point(from_center)
-	line.add_point(to_center)
-	
-	path_container.add_child(line)
-
 # Update player position marker on map
 func update_player_position():
+	
+	if player_marker == null:
+		return
+
 	# Get player's 3D position
 	var player_pos = player.global_position
 	
 	# Get current location
-	var current_location = alife_system.current_location
+	var current_location = get_current_location()
 	
 	# Convert to back position
 	var back_pos = coord_translator.front_to_back(current_location, player_pos)
@@ -289,11 +223,15 @@ func update_player_position():
 	# Update marker position
 	player_marker.position = screen_pos - player_marker.size / 2
 
+# Get current location from world manager
+func get_current_location() -> String:
+	var world = get_node("/root/World")
+	return world.current_location_id
+
 # Convert world coordinates to screen coordinates
 func map_to_screen(world_pos: Vector2) -> Vector2:
-	# Apply scaling and offset for visualizationasd
-	# This would need tuning based on actual map size
-	var scale_factor = 2.0
+	# Apply scaling and offset for visualization
+	var scale_factor = 1.0
 	var offset = Vector2(50, 50)  # Margin from the edges
 	
 	return world_pos * scale_factor + offset

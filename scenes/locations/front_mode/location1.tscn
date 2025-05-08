@@ -12,6 +12,7 @@
 albedo_texture = ExtResource("2_23wdh")
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_c4o1l"]
+uv2_padding = 3.02
 size = Vector2(1000, 1000)
 
 [node name="Location1" type="Node3D"]
@@ -30,8 +31,8 @@ material_override = SubResource("StandardMaterial3D_agpcq")
 mesh = SubResource("PlaneMesh_c4o1l")
 
 [node name="POI" parent="." instance=ExtResource("3_vo7k0")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.3569, 1, 26.4962)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 304.121, 1, 178.088)
 
 [node name="POI2" parent="." instance=ExtResource("3_vo7k0")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.484, 1, 32.2312)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.484, 0, 129.853)
 poi_id = "poi2"

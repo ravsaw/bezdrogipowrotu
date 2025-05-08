@@ -2,8 +2,8 @@ extends Node
 class_name ALifeSystem
 
 # Settings
-var front_distance_threshold = 100.0  # Distance at which NPCs switch to front mode
-var back_distance_threshold = 150.0   # Distance at which NPCs switch to back mode
+var front_distance_threshold = 10.0  # Distance at which NPCs switch to front mode
+var back_distance_threshold = 15.0   # Distance at which NPCs switch to back mode
 var simulation_tick_time = 1.0        # Seconds between simulation updates in back mode
 var simulation_timer = 0.0
 
