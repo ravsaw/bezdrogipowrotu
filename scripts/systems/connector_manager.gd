@@ -20,7 +20,7 @@ func _ready():
 	coord_translator = get_node_or_null("/root/World/Systems/CoordTranslator")
 	
 	# Notify that Connector Manager is ready
-	emit_signal("connector_manager_ready")
+	emit_signal("manager_ready")
 	print("Connector Manager ready")
 
 # Register a connector from scene

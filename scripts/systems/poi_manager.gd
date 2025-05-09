@@ -7,15 +7,16 @@ var all_pois = {}  # Dictionary of POIResource by ID
 
 # Sygnały
 signal poi_state_changed(poi_id, is_active)
-signal poi_manager_ready  # Dodany nowy sygnał
-signal pois_registered  # Dodaj ten brakujący sygnał!
+signal manager_ready  # Renamed from poi_manager_ready
+signal pois_registered  # Kept as is
+signal poi_registered(poi_id)  # New signal for individual registration
 
 func _ready():
 	# Poczekaj na klatkę, aby zapewnić, że węzeł jest w pełni inicjalizowany
 	await get_tree().process_frame
 	
 	# Powiadom wszystkich, że POI Manager jest gotowy
-	emit_signal("poi_manager_ready")
+	emit_signal("manager_ready")
 	print("POI Manager gotowy - zarejestrowano " + str(all_pois.size()) + " POI")
 
 # Rejestruj POI markery z sceny strategic_map
@@ -25,6 +26,7 @@ func register_scene_pois(pois_array: Array):
 	for poi_resource in pois_array:
 		if poi_resource is POIResource:
 			all_pois[poi_resource.poi_id] = poi_resource
+			emit_signal("poi_registered", poi_resource.poi_id)  # Emit signal for individual registration
 			print("Zarejestrowano dane POI: " + poi_resource.poi_id + " na pozycji: " + str(poi_resource.world_position))
 	
 	print("Zarejestrowano łącznie " + str(all_pois.size()) + " zasobów POI")
