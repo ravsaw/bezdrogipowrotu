@@ -2,6 +2,14 @@
 extends Node
 class_name NPCManager
 
+var npc_scenes = {
+	"stalker": preload("res://scenes/characters/stalker_npc.tscn"),
+	"bandit": preload("res://scenes/characters/bandit_npc.tscn"),
+	# Add more NPC types as needed
+	"default": preload("res://scenes/characters/base_npc.tscn")
+}
+
+
 # Collection of all NPCs in the game
 var player_visibility_range: float = 150.0  # 50 meters visibility range
 var all_npcs = {}       # Dictionary of NPCResource objects by ID (master data)
@@ -219,22 +227,53 @@ func spawn_npc_3d(npc_id: String, location_id: String):
 	
 	print("Spawning 3D NPC: " + npc_id)
 	
-	# Create 3D instance
-	var npc_node = create_npc_instance(npc_id)
-	if npc_node:
-		# Add to scene
-		npc_container.add_child(npc_node)
-		npc_instances[npc_id] = npc_node
+	var npc_instance = create_npc_instance(npc_id)
+	if npc_instance:
+		# Add to container
+		npc_container.add_child(npc_instance)
+		npc_instances[npc_id] = npc_instance
 		
 		# Set position
-		var pos_3d = coord_translator.back_to_front(location_id, npc.world_position)
-		npc_node.global_position = pos_3d
+		var npc_data = all_npcs[npc_id]
+		var pos_3d = coord_translator.back_to_front(location_id, npc_data.world_position)
+		npc_instance.global_position = pos_3d
+		
+		# If NPC was moving to a target, restore that state
+		if npc_data.state == "moving":
+			if npc_data.target_poi_id:
+				# Get target POI in 3D
+				var target_poi = poi_manager.get_poi(npc_data.target_poi_id)
+				if target_poi:
+					var target_pos = coord_translator.back_to_front(location_id, target_poi.world_position)
+					npc_instance.set_target_position(target_pos)
 		
 		print("NPC " + npc_id + " is now visible in 3D at position " + str(pos_3d))
-		return npc_node
+		
+		# Connect to NPC signals
+		npc_instance.arrived_at_target.connect(_on_npc_arrived_at_target.bind(npc_id))
+		
+		return npc_instance
 	
 	return null
-	
+
+# Handle NPC arrival at target
+func _on_npc_arrived_at_target(npc_id: String):
+	if all_npcs.has(npc_id):
+		var npc_data = all_npcs[npc_id]
+		
+		# Update NPC state
+		if npc_data.target_poi_id:
+			npc_data.current_poi_id = npc_data.target_poi_id
+			npc_data.target_poi_id = ""
+			npc_data.state = "idle"
+			emit_signal("npc_state_changed", npc_id, "idle")
+			
+			print("NPC " + npc_id + " arrived at POI " + npc_data.current_poi_id)
+			
+			# Choose new target after delay
+			var timer = get_tree().create_timer(rand_range(5.0, 15.0))
+			timer.timeout.connect(_on_npc_choose_new_target.bind(npc_id))
+			
 func _on_location_changed(new_location_id: String):
 	print("Location changed to " + new_location_id + ", clearing all active NPCs")
 	
@@ -485,38 +524,40 @@ func _on_npc_choose_new_target(npc_id):
 
 # Create 3D instance of NPC in the world
 func create_npc_instance(npc_id: String) -> Node3D:
+	
 	if not all_npcs.has(npc_id):
 		push_error("Cannot create NPC instance - NPC ID not found: " + npc_id)
 		return null
 	
-	var npc = all_npcs[npc_id]
+	var npc_data = all_npcs[npc_id]
 	
-	# Create NPC node
-	var npc_node = Node3D.new()
-	npc_node.name = npc_id
+	# Get the appropriate scene based on NPC type
+	var scene = npc_scenes.get(npc_data.npc_type, npc_scenes["default"])
 	
-	# Create visual representation (simple capsule for now)
-	var mesh_instance = MeshInstance3D.new()
-	var capsule_mesh = CapsuleMesh.new()
-	capsule_mesh.radius = 0.5
-	capsule_mesh.height = 2.0
-	mesh_instance.mesh = capsule_mesh
-	mesh_instance.position.y = 1.0  # Center at feet
-	npc_node.add_child(mesh_instance)
+	# Instantiate the scene
+	var npc_instance = scene.instantiate()
 	
-	# Add material with NPC color
-	var material = StandardMaterial3D.new()
-	material.albedo_color = npc.color
-	mesh_instance.material_override = material
+	# Initialize with data
+	var init_data = {
+		"npc_id": npc_data.npc_id,
+		"npc_type": npc_data.npc_type,
+		"faction": npc_data.faction,
+		"health": npc_data.health,
+		"color": npc_data.color,
+		# Add equipment if defined
+		"equipment": {
+			"head": "none",  # Default values
+			"body": "none",
+			"weapon": "none"
+		}
+	}
 	
-	# Add label
-	var label = Label3D.new()
-	label.text = npc.npc_id + "\n[" + npc.faction + "]"
-	label.position = Vector3(0, 2.5, 0)  # Above head
-	label.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	npc_node.add_child(label)
+	# Call initialize method
+	npc_instance.initialize(init_data)
 	
-	return npc_node
+	print("Created " + npc_data.npc_type + " NPC instance: " + npc_id)
+	
+	return npc_instance
 	
 # Remove 3D instance of NPC
 func remove_npc_instance(npc_id: String):

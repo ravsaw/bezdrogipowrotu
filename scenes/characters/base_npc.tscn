@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3 uid="uid://cpjgxni0w1rqn"]
+
+[ext_resource type="Script" uid="uid://dowth1v4akhun" path="res://scenes/characters/base_npc.gd" id="1_pkfd4"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_pkfd4"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_f37n7"]
+
+[node name="BaseNpc" type="CharacterBody3D"]
+script = ExtResource("1_pkfd4")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CapsuleMesh_pkfd4")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_f37n7")
+
+[node name="Node3D" type="Node3D" parent="."]
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4665, 0)
+billboard = 2
+text = "NPC
+"
