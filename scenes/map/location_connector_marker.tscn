@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cyig8x5g0b2rx"]
+
+[ext_resource type="Script" uid="uid://dtjmcpvdjvf05" path="res://scenes/map/location_connector_marker.gd" id="1_kv7bf"]
+
+[node name="LocationConnectorMarker" type="Node2D"]
+script = ExtResource("1_kv7bf")

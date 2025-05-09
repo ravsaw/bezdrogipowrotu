@@ -5,12 +5,14 @@ class_name StrategicMap
 var coord_translator: CoordTranslator
 var player
 var poi_manager: POIManager
+var npc_manager: NPCManager
 
 # Elementy UI
 var map_container: Panel
 var location_rects = {}
 var player_marker: ColorRect
 var poi_markers = {}  # Słownik do przechowywania markerów POI według ID
+var npc_markers = {}  # Dictionary to store NPC markers by ID
 
 # Nawigacja po mapie
 var map_drag_active = false
@@ -34,6 +36,8 @@ func _ready():
 	# Znajdź i zarejestruj wszystkie markery lokacji
 	gather_location_markers()
 	
+	gather_location_connectors()
+	
 	# Utwórz granice lokacji na podstawie danych z CoordTranslator
 	setup_locations()
 	
@@ -42,6 +46,172 @@ func _ready():
 	
 	# Utwórz marker gracza
 	setup_player_marker()
+	
+	await get_tree().create_timer(0.5).timeout
+	npc_manager = get_node_or_null("/root/World/Systems/NPCManager")
+	
+	if npc_manager:
+		print("StrategicMap: Connecting to NPC Manager")
+		# Connect to signals
+		if not npc_manager.is_connected("npc_position_changed", _on_npc_position_changed):
+			npc_manager.npc_position_changed.connect(_on_npc_position_changed)
+		if not npc_manager.is_connected("npc_state_changed", _on_npc_state_changed):
+			npc_manager.npc_state_changed.connect(_on_npc_state_changed)
+		
+		await get_tree().create_timer(0.5).timeout
+		# Display all NPCs
+		display_all_npcs()
+	else:
+		push_error("StrategicMap: NPC Manager not found!")
+		
+		
+func gather_location_connectors():
+	# Find all connector markers
+	var connector_markers = get_tree().get_nodes_in_group("location_connectors")
+	
+	print("Found " + str(connector_markers.size()) + " location connector markers")
+	
+	var connectors_data = []
+	
+	for marker in connector_markers:
+		if marker is LocationConnectorMarker:
+			var connector_data = marker.get_connector_data()
+			connectors_data.append(connector_data)
+			
+			# Add line on map
+			var line = Line2D.new()
+			line.width = 2.0
+			line.default_color = marker.color
+			line.add_point(marker.position)
+			# Will add second point when second location marker is registered
+			map_content.add_child(line)
+			
+			print("Registered connector: " + connector_data["connector_id"])
+			
+			# Can remove marker from scene as data is saved
+			marker.queue_free()
+	
+	# Get connector manager and register connectors
+	var connector_manager = get_node_or_null("/root/World/Systems/ConnectorManager")
+	if connector_manager:
+		connector_manager.register_scene_connectors(connectors_data)
+	else:
+		push_error("ConnectorManager not found!")
+		
+# Display all NPCs
+func display_all_npcs():
+	print("StrategicMap: Displaying all NPCs")
+	
+	# Clear existing markers
+	for marker in npc_markers.values():
+		marker.queue_free()
+	npc_markers.clear()
+	
+	# Add marker for each NPC
+	for npc_id in npc_manager.all_npcs:
+		var npc = npc_manager.all_npcs[npc_id]
+		create_npc_marker(npc)
+	
+	print("StrategicMap: Added " + str(npc_markers.size()) + " NPC markers")
+	
+# Create a marker for an NPC
+func create_npc_marker(npc: NPCResource):
+	# Create marker scene
+	var marker_scene = load("res://scenes/map/npc_marker.tscn")
+	var marker = marker_scene.instantiate()
+	marker.npc_id = npc.npc_id
+	marker.color = npc.color
+	marker.faction = npc.faction
+	marker.position = npc.world_position
+	
+	# If NPC is moving, show path
+	if npc.state == "moving" and not npc.target_poi_id.is_empty():
+		var target_poi = poi_manager.get_poi(npc.target_poi_id)
+		if target_poi:
+			marker.update_path(true, target_poi.world_position)
+	
+	# Add to map
+	map_content.add_child(marker)
+	npc_markers[npc.npc_id] = marker
+	
+	print("StrategicMap: Created marker for " + npc.npc_id + " at " + str(npc.world_position))
+	return marker
+	
+# Display a single NPC on the map
+func display_npc(npc: NPCResource):
+	print("StrategicMap: Displaying NPC " + npc.npc_id + " at position " + str(npc.world_position))
+	
+	# Create simple colored rectangle for NPC
+	var npc_marker = ColorRect.new()
+	npc_marker.color = npc.color
+	npc_marker.size = Vector2(8, 8)
+	npc_marker.position = npc.world_position - Vector2(4, 4)  # Center marker
+	map_content.add_child(npc_marker)
+	
+	# Add label
+	var label = Label.new()
+	label.text = npc.npc_id
+	label.position = Vector2(10, -10)
+	label.add_theme_color_override("font_color", npc.color)
+	npc_marker.add_child(label)
+	
+	# Add path line for moving NPCs with a delay to ensure it's created properly
+	if npc.state == "moving" and not npc.target_poi_id.is_empty():
+		var target_poi = poi_manager.get_poi(npc.target_poi_id)
+		if target_poi:
+			# Create path line
+			var path_line = Line2D.new()
+			path_line.name = "PathLine"
+			path_line.width = 1.0
+			path_line.default_color = npc.color
+			path_line.default_color.a = 0.5  # Semi-transparent
+			npc_marker.add_child(path_line)
+			
+			# Wait a frame to make sure everything is set up
+			await get_tree().process_frame
+			
+			# Now add points
+			path_line.add_point(Vector2(4, 4))  # Center of marker
+			path_line.add_point(target_poi.world_position - npc.world_position + Vector2(4, 4))
+	
+	# Save reference
+	npc_markers[npc.npc_id] = npc_marker
+	
+	print("StrategicMap: Created marker for " + npc.npc_id)
+
+# Handle NPC position change
+func _on_npc_position_changed(npc_id, new_position):
+	if npc_markers.has(npc_id):
+		var marker = npc_markers[npc_id]
+		marker.position = new_position
+		
+		# Update path if moving
+		var npc = npc_manager.get_npc(npc_id)
+		if npc and npc.state == "moving" and not npc.target_poi_id.is_empty():
+			var target_poi = poi_manager.get_poi(npc.target_poi_id)
+			if target_poi:
+				marker.update_path(true, target_poi.world_position)
+
+# Handle NPC state change
+func _on_npc_state_changed(npc_id, new_state):
+	if npc_markers.has(npc_id):
+		var marker = npc_markers[npc_id]
+		var npc = npc_manager.get_npc(npc_id)
+		
+		if not npc:
+			return
+			
+		if new_state == "moving" and not npc.target_poi_id.is_empty():
+			var target_poi = poi_manager.get_poi(npc.target_poi_id)
+			if target_poi:
+				marker.update_path(true, target_poi.world_position)
+		else:
+			marker.update_path(false)
+
+# Handle NPC registration
+func _on_npc_registered(_npc_id):
+	# Refresh all NPCs display
+	display_all_npcs()
 	
 func gather_location_markers():
 	# Znajdź wszystkie markery lokacji

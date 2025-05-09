@@ -38,7 +38,7 @@ func _ready():
 			poi_manager.pois_registered.connect(_on_pois_registered, CONNECT_ONE_SHOT)
 	else:
 		push_error("Nie można załadować POI - brak POI Managera!")
-		
+
 # Nowa funkcja do obsługi sygnału rejestracji POI
 func _on_pois_registered():
 	print("Sygnał rejestracji POI odebrany przez lokację " + location_id)
@@ -165,4 +165,3 @@ func _exit_tree():
 		if poi_manager.is_connected("pois_registered", _on_pois_registered):
 			poi_manager.pois_registered.disconnect(_on_pois_registered)
 		
-	print("Lokacja " + location_id + " została usunięta")

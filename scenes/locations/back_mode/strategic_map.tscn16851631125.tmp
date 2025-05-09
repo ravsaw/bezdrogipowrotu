@@ -15,7 +15,7 @@ position = Vector2(60, 110)
 color = Color(0.301961, 0.784314, 0.301961, 0.619608)
 
 [node name="LocationMarker2" parent="." instance=ExtResource("3_w8j37")]
-position = Vector2(60, 330)
+position = Vector2(680, 200)
 location_id = "location2"
 color = Color(0.301961, 0.301961, 0.878431, 0.596078)
 
@@ -26,7 +26,7 @@ radius = 10.0
 color = Color(0, 0.8, 0, 1)
 
 [node name="PoiMarker2" parent="." instance=ExtResource("2_tgbm0")]
-position = Vector2(240, 350)
+position = Vector2(860, 220)
 radius = 5.0
 color = Color(1, 0.8, 0, 1)
 
@@ -37,7 +37,7 @@ radius = 3.01
 color = Color(1, 0, 0, 1)
 
 [node name="LocationConnectorMarker" parent="." instance=ExtResource("4_tqedq")]
-position = Vector2(70, 340)
+position = Vector2(690, 210)
 connector_id = "connector2"
 location_a = "location2"
 location_b = "location1"

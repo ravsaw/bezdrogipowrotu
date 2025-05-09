@@ -22,6 +22,8 @@ var locations_container: Node3D
 var systems_container: Node
 var ui_container: Control
 
+signal location_changed(location_id)
+
 func _ready():
 	# Utwórz kontenery do organizacji
 	locations_container = Node3D.new()
@@ -57,10 +59,22 @@ func connect_systems():
 	if strategic_map and player:
 		strategic_map.set_player(player)
 	
+	# Connect NPCManager to other systems
+	var npc_manager = get_node_or_null("Systems/NPCManager")
+	if npc_manager:
+		npc_manager.world_manager = self
+		npc_manager.coord_translator = coord_translator
+		npc_manager.poi_manager = poi_manager
+		npc_manager.player = player
+		
+		# Connect to location_changed signal
+		location_changed.connect(npc_manager._on_location_changed)
+		
+		print("Connected NPCManager to other systems")
+		
 	# Możesz dodać więcej połączeń między systemami tutaj
 	print("Systemy połączone")
 	
-# Modyfikacja funkcji initialize_systems w world.gd
 func initialize_systems():
 	# Utwórz translator koordynatów
 	coord_translator = CoordTranslator.new()
@@ -72,11 +86,72 @@ func initialize_systems():
 	poi_manager.name = "POIManager"
 	systems_container.add_child(poi_manager)
 	
+	# Create NPC manager
+	var npc_manager = NPCManager.new()
+	npc_manager.name = "NPCManager"
+	systems_container.add_child(npc_manager)
+	
+	# Create connector manager 
+	var connector_manager = ConnectorManager.new()
+	connector_manager.name = "ConnectorManager"
+	systems_container.add_child(connector_manager)
+	
+	
 	# Czekaj jedną klatkę na inicjalizację systemów
 	await get_tree().process_frame
 	
 	print("Systemy zainicjalizowane")
+	
+	# Create test NPCs immediately after systems are initialized
+	create_test_npcs()
 
+# Create some test NPCs
+func create_test_npcs():
+	var npc_manager = get_node("Systems/NPCManager")
+	if not npc_manager:
+		push_error("NPC Manager not found! Cannot create test NPCs.")
+		return
+		
+	print("Creating test NPCs...")
+	
+	# Create an array of NPCs
+	var npcs = []
+	
+	# Create 5 stalkers
+	for i in range(1, 6):
+		var npc = NPCResource.new()
+		npc.npc_id = "stalker" + str(i)
+		npc.npc_type = "stalker"
+		npc.faction = "loner"
+		npc.world_position = Vector2(100 + i * 20, 150)  # Place around location1
+		npc.color = Color(0.2, 0.6, 1.0)  # Blue for loners
+		npcs.append(npc)
+		print("Created stalker" + str(i) + " at position " + str(npc.world_position))
+	
+	# Create 3 bandits
+	for i in range(1, 4):
+		var npc = NPCResource.new()
+		npc.npc_id = "bandit" + str(i)
+		npc.npc_type = "bandit"
+		npc.faction = "bandit"
+		npc.world_position = Vector2(700 + i * 20, 250)  # Place around location2
+		npc.color = Color(0.1, 0.1, 0.1)  # Black for bandits
+		npcs.append(npc)
+		print("Created bandit" + str(i) + " at position " + str(npc.world_position))
+	
+	# Register all NPCs
+	npc_manager.register_npcs(npcs)
+	
+	# Start their movement after short delay
+	get_tree().create_timer(2.0).timeout.connect(func():
+		# Set each NPC to start moving to a POI
+		for npc in npcs:
+			npc_manager._on_npc_choose_new_target(npc.npc_id)
+		print("NPCs started moving to POIs")
+	)
+	
+	print("Created test NPCs")
+	
 # Skonfiguruj gracza
 func setup_player():
 	# Zinstancjonuj scenę gracza
@@ -139,6 +214,9 @@ func change_location(location_id: String, spawn_position: Vector2 = Vector2.ZERO
 	else:
 		# Użyj domyślnej pozycji spawnu
 		player.global_position = coord_translator.back_to_front(location_id, Vector2(150, 150))
+	
+	# Emit location changed signal
+	emit_signal("location_changed", location_id)
 
 # Ustaw stan aktywności POI
 func set_poi_active(poi_id: String, active: bool):
