@@ -26,22 +26,47 @@ func _ready():
 	# Pobierz referencje do systemów
 	coord_translator = get_node("/root/World/Systems/CoordTranslator")
 	poi_manager = get_node("/root/World/Systems/POIManager")
+	player = get_node_or_null("/root/World/Player")
 	
 	# Utwórz layout UI
 	setup_ui()
 	
-	# Utwórz granice lokacji
+	# Znajdź i zarejestruj wszystkie markery lokacji
+	gather_location_markers()
+	
+	# Utwórz granice lokacji na podstawie danych z CoordTranslator
 	setup_locations()
 	
-	# Zarejestruj POI ze sceny i skoryguj ich pozycje
+	# Zarejestruj POI ze sceny
 	register_and_correct_scene_pois()
-	
-	# NIE wywołuj display_all_pois() - to tworzy podwójne markery
-	# display_all_pois()
 	
 	# Utwórz marker gracza
 	setup_player_marker()
-
+	
+func gather_location_markers():
+	# Znajdź wszystkie markery lokacji
+	var location_markers = get_tree().get_nodes_in_group("location_markers")
+	
+	print("Znaleziono " + str(location_markers.size()) + " markery lokacji")
+	
+	for marker in location_markers:
+		if marker is LocationMarker:
+			var loc_data = marker.get_location_data()
+			
+			# Zarejestruj lokację w CoordTranslator
+			var formatted_data = {
+				"world_pos": loc_data["position"],
+				"size": loc_data["size"],
+				"scale_factor": loc_data["scale_factor"],
+				"color": loc_data["color"]  # Dodajemy kolor
+			}
+			
+			coord_translator.register_location(loc_data["location_id"], formatted_data)
+			print("Zarejestrowano lokację: " + loc_data["location_id"] + " z markera")
+			
+			# Możemy usunąć marker, ponieważ nie jest już potrzebny
+			marker.queue_free()
+			
 # Nowa funkcja rejestrująca POI ze sceny i korygująca ich pozycje
 func register_and_correct_scene_pois():
 	# Znajdź wszystkie markery POI
@@ -250,7 +275,12 @@ func setup_locations():
 		
 		# Utwórz prostokąt
 		var rect = ColorRect.new()
-		rect.color = Color(0.3, 0.3, 0.3, 0.5)  # Półprzezroczysty szary
+		
+		# Użyj koloru z danych lokacji (lub domyślnego, jeśli nie zdefiniowano)
+		if location.has("color"):
+			rect.color = location["color"]
+		else:
+			rect.color = Color(0.3, 0.3, 0.3, 0.5)  # Domyślny półprzezroczysty szary
 		
 		# Ustaw pozycję i rozmiar
 		rect.position = world_pos

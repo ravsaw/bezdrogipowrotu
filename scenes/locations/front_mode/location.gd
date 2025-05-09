@@ -2,9 +2,6 @@ extends Node3D
 class_name Location
 
 @export var location_id: String = "location1"
-@export var strategic_map_position: Vector2 = Vector2(0, 0) # Pozycja na mapie strategicznej
-@export var strategic_map_size: Vector2 = Vector2(100, 100) # Rozmiar na mapie strategicznej 
-@export var scale_factor: Vector2 = Vector2(10, 10) # Współczynnik skalowania front->back
 
 # Referencje systemowe
 var coord_translator: CoordTranslator
@@ -16,24 +13,10 @@ var poi_container: Node3D
 var poi_instances = {} # Słownik instancji POI w tej lokacji
 
 func _ready():
-	# Pobierz referencje systemowe
+		# Pobierz referencje systemowe
 	coord_translator = get_node("/root/World/Systems/CoordTranslator")
-	
-	# Znajdź POI Manager
-	poi_manager = get_node_or_null("/root/World/Systems/POIManager")
-	if not poi_manager:
-		push_error("Nie znaleziono POI Manager - szukam w całym drzewie!")
-		poi_manager = get_tree().root.find_child("POIManager", true, false)
-	
-	if not poi_manager:
-		push_error("POI Manager nadal nie znaleziony!")
-	else:
-		print("POI Manager znaleziony w lokacji " + location_id)
-	
+	poi_manager = get_node("/root/World/Systems/POIManager")
 	world_manager = get_node("/root/World")
-	
-	# Zarejestruj lokację w systemie tłumaczenia koordynatów
-	register_with_coord_translator()
 	
 	# Utwórz kontener na POI
 	poi_container = Node3D.new()
@@ -66,26 +49,16 @@ func _on_poi_manager_ready():
 	print("Sygnał gotowości POI Managera odebrany przez lokację " + location_id)
 	load_pois_from_manager()
 
-# Zarejestruj lokację w systemie tłumaczenia koordynatów
-func register_with_coord_translator():
-	if coord_translator:
-		var location_data = {
-			"world_pos": strategic_map_position,
-			"size": strategic_map_size,
-			"scale_factor": scale_factor
-		}
-		
-		coord_translator.register_location(location_id, location_data)
-		print("Lokacja " + location_id + " zarejestrowana w CoordTranslator z pozycją " + 
-			str(strategic_map_position) + " i rozmiarem " + str(strategic_map_size))
-	else:
-		push_error("Nie znaleziono CoordTranslator podczas rejestracji lokacji " + location_id)
-
 # Załaduj POI z menedżera POI
 func load_pois_from_manager():
 	if not poi_manager:
 		push_error("POIManager not found - nie można załadować POI dla lokacji " + location_id)
 		return
+	
+	# Pobierz dane lokacji z CoordTranslator
+	var location_data = coord_translator.location_data[location_id]
+	var strategic_map_position = location_data["world_pos"]
+	var strategic_map_size = location_data["size"]
 	
 	print("Ładowanie POI dla lokacji " + location_id + " o granicach " + 
 		str(strategic_map_position) + " do " + str(strategic_map_position + strategic_map_size))

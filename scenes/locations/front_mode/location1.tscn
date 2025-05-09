@@ -16,9 +16,6 @@ size = Vector2(1000, 1000)
 
 [node name="Location1" type="Node3D"]
 script = ExtResource("1_pnq7l")
-strategic_map_position = Vector2(50, 100)
-strategic_map_size = Vector2(200, 200)
-scale_factor = Vector2(5, 5)
 
 [node name="StaticBody3D" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 500, 0, 500)

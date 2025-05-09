@@ -2,38 +2,35 @@
 
 [ext_resource type="Script" uid="uid://ctrs6asjj47b0" path="res://scenes/locations/back_mode/strategic_map.gd" id="1_136s7"]
 [ext_resource type="PackedScene" uid="uid://b8b2rm4oxq2g5" path="res://scenes/map/poi_marker.tscn" id="2_tgbm0"]
-
-[sub_resource type="NavigationPolygon" id="NavigationPolygon_tgbm0"]
-vertices = PackedVector2Array(340, 190, 60, 190, 60, 10, 340, 10)
-polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3)])
-outlines = Array[PackedVector2Array]([PackedVector2Array(50, 0, 350, 0, 350, 200, 50, 200)])
+[ext_resource type="PackedScene" uid="uid://na0i44uc4vqw" path="res://scenes/map/location_marker.tscn" id="3_w8j37"]
 
 [node name="StrategicMap" type="Control"]
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = 0
 script = ExtResource("1_136s7")
 
-[node name="Location1NavRegion" type="NavigationRegion2D" parent="."]
-position = Vector2(-20, 100)
-navigation_polygon = SubResource("NavigationPolygon_tgbm0")
+[node name="LocationMarker" parent="." instance=ExtResource("3_w8j37")]
+position = Vector2(60, 110)
+color = Color(0.301961, 0.784314, 0.301961, 0.619608)
+
+[node name="LocationMarker2" parent="." instance=ExtResource("3_w8j37")]
+position = Vector2(680, 200)
+location_id = "location2"
+color = Color(0.301961, 0.301961, 0.878431, 0.596078)
 
 [node name="PoiMarker" parent="." instance=ExtResource("2_tgbm0")]
 position = Vector2(100, 130)
 poi_id = "poi2"
 radius = 10.0
-color = Color(0, 0.8, 0, 0.439216)
+color = Color(0, 0.8, 0, 1)
 
 [node name="PoiMarker2" parent="." instance=ExtResource("2_tgbm0")]
-position = Vector2(200, 130)
+position = Vector2(860, 220)
 radius = 5.0
-color = Color(1, 0.8, 0, 0.423529)
+color = Color(1, 0.8, 0, 1)
 
 [node name="PoiMarker3" parent="." instance=ExtResource("2_tgbm0")]
 position = Vector2(100, 200)
 poi_id = "poi3"
 radius = 3.01
-color = Color(1, 0, 0, 0.447059)
+color = Color(1, 0, 0, 1)
